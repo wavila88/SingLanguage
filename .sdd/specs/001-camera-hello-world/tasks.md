@@ -15,7 +15,7 @@ Manual check: Run `python src/main.py`, verify the mirrored webcam window displa
 Test: `tests/test_camera.py` asserts that when `isOpened()` is false or `read()` returns `(False, None)`, an error message is logged and resources are safely released without raising an unhandled exception.
 Manual check: Run `python src/main.py` with an invalid camera index or busy camera and verify a clear error message is printed and the program exits cleanly.
 
-- [ ] 2.1 Failing test — result: ________
-- [ ] 2.2 Implementation — files: ________
-- [ ] 2.3 Passing test — result: ________
-- [ ] 2.4 Developer approval
+- [x] 2.1 Failing test — result: FAILED: DID NOT RAISE SystemExit (test_main_reports_error_and_exits_when_camera_cannot_open)
+- [x] 2.2 Implementation — files: `src/main.py` (check `cap.isOpened()`, print error to stderr, `sys.exit(1)`), `pytest.ini` (added `src` to pythonpath)
+- [x] 2.3 Passing test — result: 2 passed (`python -m pytest tests/test_camera.py -q`)
+- [x] 2.4 Developer approval

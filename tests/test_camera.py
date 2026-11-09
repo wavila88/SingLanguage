@@ -1,6 +1,7 @@
 import numpy as np
+import pytest
 
-from src import camera
+from src import camera, main
 
 
 class FakeCapture:
@@ -42,3 +43,22 @@ def test_run_camera_mirrors_draws_overlay_and_exits_on_q(monkeypatch):
     assert texts and all(t == camera.OVERLAY_TEXT for t in texts)
     assert cap.released is True
     assert destroyed == [True]
+
+
+def test_main_reports_error_and_exits_when_camera_cannot_open(monkeypatch, capsys):
+    class ClosedCapture(FakeCapture):
+        def isOpened(self):
+            return False
+
+    cap = ClosedCapture([])
+    started = []
+
+    monkeypatch.setattr(main.cv2, "VideoCapture", lambda index: cap)
+    monkeypatch.setattr(main, "run_camera", lambda c: started.append(c))
+
+    with pytest.raises(SystemExit) as exc:
+        main.main()
+
+    assert exc.value.code == 1
+    assert started == []
+    assert "cámara" in capsys.readouterr().err.lower()
