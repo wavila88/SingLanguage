@@ -1,0 +1,44 @@
+import numpy as np
+
+from src import camera
+
+
+class FakeCapture:
+    def __init__(self, frames):
+        self._frames = list(frames)
+        self.released = False
+
+    def read(self):
+        if not self._frames:
+            return False, None
+        return True, self._frames.pop(0)
+
+    def release(self):
+        self.released = True
+
+
+def test_run_camera_mirrors_draws_overlay_and_exits_on_q(monkeypatch):
+    frame = np.zeros((4, 6, 3), dtype=np.uint8)
+    frame[:, :3] = 255
+    cap = FakeCapture([frame, frame])
+
+    shown = []
+    texts = []
+    destroyed = []
+
+    monkeypatch.setattr(camera.cv2, "imshow", lambda name, img: shown.append((name, img.copy())))
+    monkeypatch.setattr(camera.cv2, "putText", lambda img, text, *args, **kwargs: texts.append(text))
+    monkeypatch.setattr(camera.cv2, "destroyAllWindows", lambda: destroyed.append(True))
+    keys = iter([ord("a"), ord("q")])
+    monkeypatch.setattr(camera.cv2, "waitKey", lambda delay: next(keys))
+
+    camera.run_camera(cap)
+
+    assert len(shown) == 2
+    name, last_image = shown[-1]
+    assert name == camera.WINDOW_NAME
+    assert last_image[0, 0, 0] == 0
+    assert last_image[0, -1, 0] == 255
+    assert texts and all(t == camera.OVERLAY_TEXT for t in texts)
+    assert cap.released is True
+    assert destroyed == [True]
