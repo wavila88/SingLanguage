@@ -37,3 +37,11 @@ class PostgresSampleRepository:
             )
             if cur.fetchone() is None:
                 raise ValueError(f"Vocal desconocida: {label}")
+
+    def load_samples(self):
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT l.label, s.points FROM samples s "
+                "JOIN epression l ON l.id = s.epression_id ORDER BY s.id"
+            )
+            return [(label, points) for label, points in cur.fetchall()]
