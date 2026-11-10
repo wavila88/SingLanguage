@@ -67,7 +67,7 @@ def render_frame(frame, window_w, window_h):
     return canvas
 
 
-def run_camera(cap, detector=None, repository=None):
+def run_camera(cap, detector=None, repository=None, predict=None):
     try:
         window_size = None
         message = ""
@@ -80,6 +80,10 @@ def run_camera(cap, detector=None, repository=None):
                 height, width = frame.shape[:2]
                 window_size = setup_window(width / height)
             frame = draw_frame(frame, detector)
+            if predict is not None and detector is not None:
+                text = predict(detector)
+                if text:
+                    cv2.putText(frame, text, (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             if message and time.monotonic() - message_at > MESSAGE_SECONDS:
                 message = ""
             if message:
