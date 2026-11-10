@@ -33,6 +33,13 @@ def setup_window(aspect_ratio):
     return width, height
 
 
+def window_closed():
+    try:
+        return cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1
+    except cv2.error:
+        return True
+
+
 def get_window_size(default):
     """Current window client size, or `default` when it cannot be read."""
     x, y, w, h = cv2.getWindowImageRect(WINDOW_NAME)
@@ -67,7 +74,7 @@ def run_camera(cap, detector=None, repository=None):
         message_at = 0.0
         while True:
             ret, frame = cap.read()
-            if not ret:
+            if not ret or (window_size is not None and window_closed()):
                 break
             if window_size is None:
                 height, width = frame.shape[:2]

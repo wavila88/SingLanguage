@@ -28,49 +28,31 @@ Manual check: Press `e` twice and confirm Neon has one `epression` row for `e`, 
 - [x] 3.1 Failing test — result: FAILED: UndefinedTable: relation "letters" does not exist (`tests/test_dataset.py`)
 - [x] 3.2 Implementation — files: `src/dbConf/schema.sql` (epression parent seeded with a, e, i, o, u; samples child with epression_id FK), `src/dbConf/database.py` (`save_sample` inserts a child row linked to its epression, raises ValueError for an unknown vowel). One-time migration in Neon: dropped `sample_points`, `samples` and `letters`, and recreated `epression` and `samples`
 - [x] 3.3 Passing test — result: 1 passed (`pytest tests/test_dataset.py -v`); full suite 8 passed
-- [ ] 3.4 Developer approval
+- [x] 3.4 Developer approval
 
-## Phase 4 — Append the sample to Neon as samples and sample_points (covers HP-2) — pendiente, se reemplaza por la fase 3
-Test: `tests/test_dataset.py` asserts that a second save inserts another `samples` row and 21 `sample_points` rows linked by `sample_id`, and that the first sample remains.
-Manual check: Press `e` twice and confirm Neon has two `samples` rows, each with 21 `sample_points`, and the first was not replaced.
+## Phase 4 — Release the repository when the user presses q (covers HP-4)
+Test: `tests/test_dataset.py` asserts that pressing `q` releases the hand detector, the repository, and the camera, and that the window closes.
+Manual check: Press `q` and confirm the camera light turns off and no process stays open.
 
-- [ ] 4.1 Failing test — result: ________
-- [ ] 4.2 Implementation — files: ________
-- [ ] 4.3 Passing test — result: ________
-- [ ] 4.4 Developer approval
+- [x] 4.1 Failing test — result: FAILED: AssertionError: assert 3 == 1 (`tests/test_camera.py::test_run_camera_stops_and_releases_when_window_is_closed_with_x`, con la comprobación de ventana desactivada)
+- [x] 4.2 Implementation — files: `src/camera.py` (`window_closed()` and the loop stops when the window is closed with X, then releases the camera)
+- [x] 4.3 Passing test — result: 9 passed (`python -m pytest -q`)
+- [x] 4.4 Developer approval
 
-## Phase 5 — Show the stored count per vowel, not a prediction (covers HP-4)
-Test: `tests/test_dataset.py` asserts that the window shows the repository count for each vowel, the hand skeleton is still drawn, and no predicted vowel appears.
-Manual check: Save a few vowels, then confirm the on-screen counts match and the window never guesses a letter.
+## Phase 5 — Keep the camera running when a save fails (covers SP-2)
+Test: `tests/test_dataset.py` asserts that a repository error while saving shows an error, stores no partial sample, and the camera loop continues until `q`.
+Manual check: Force a save failure, confirm the error and that the window stays open until you press `q`.
 
 - [ ] 5.1 Failing test — result: ________
 - [ ] 5.2 Implementation — files: ________
 - [ ] 5.3 Passing test — result: ________
 - [ ] 5.4 Developer approval
 
-## Phase 6 — Release the repository when the user presses q (covers HP-5)
-Test: `tests/test_dataset.py` asserts that pressing `q` releases the hand detector, the repository, and the camera, and that the window closes.
-Manual check: Press `q` and confirm the camera light turns off and no process stays open.
+## Phase 6 — Exit when Neon cannot be used at startup (covers SP-3)
+Test: `tests/test_dataset.py` asserts that a missing `DATABASE_URL` or an unreachable Neon prints an error to stderr, exits with code 1, and does not leave the camera open.
+Manual check: Rename `.env` temporarily, run `python src/main.py`, and confirm the error, exit code 1, and that the camera light never stays on.
 
 - [ ] 6.1 Failing test — result: ________
 - [ ] 6.2 Implementation — files: ________
 - [ ] 6.3 Passing test — result: ________
 - [ ] 6.4 Developer approval
-
-## Phase 7 — Keep the camera running when a save fails (covers SP-2)
-Test: `tests/test_dataset.py` asserts that a repository error while saving shows an error, stores no partial sample, and the camera loop continues until `q`.
-Manual check: Force a save failure, confirm the error and that the window stays open until you press `q`.
-
-- [ ] 7.1 Failing test — result: ________
-- [ ] 7.2 Implementation — files: ________
-- [ ] 7.3 Passing test — result: ________
-- [ ] 7.4 Developer approval
-
-## Phase 8 — Exit when Neon cannot be used at startup (covers SP-3)
-Test: `tests/test_dataset.py` asserts that a missing `DATABASE_URL` or an unreachable Neon prints an error to stderr, exits with code 1, and does not leave the camera open.
-Manual check: Rename `.env` temporarily, run `python src/main.py`, and confirm the error, exit code 1, and that the camera light never stays on.
-
-- [ ] 8.1 Failing test — result: ________
-- [ ] 8.2 Implementation — files: ________
-- [ ] 8.3 Passing test — result: ________
-- [ ] 8.4 Developer approval

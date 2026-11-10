@@ -45,6 +45,22 @@ def test_run_camera_mirrors_and_exits_on_q(monkeypatch):
     assert destroyed == [True]
 
 
+def test_run_camera_stops_and_releases_when_window_is_closed_with_x(monkeypatch):
+    frame = np.zeros((4, 6, 3), dtype=np.uint8)
+    cap = FakeCapture([frame, frame, frame])
+    shown = []
+
+    monkeypatch.setattr(camera.cv2, "imshow", lambda name, img: shown.append(name))
+    monkeypatch.setattr(camera.cv2, "destroyAllWindows", lambda: None)
+    monkeypatch.setattr(camera.cv2, "waitKey", lambda delay: ord("x"))
+    monkeypatch.setattr(camera.cv2, "getWindowProperty", lambda name, prop: 0 if shown else 1)
+
+    camera.run_camera(cap)
+
+    assert len(shown) == 1
+    assert cap.released is True
+
+
 def test_main_reports_error_and_exits_when_camera_cannot_open(monkeypatch, capsys):
     class ClosedCapture(FakeCapture):
         def isOpened(self):
