@@ -18,7 +18,7 @@ Updated: 2026-11-09 after spec 003 phase 1
   - `src/database.py` + `src/schema.sql` → Neon connection and dataset tables (← spec 003)
   - `data/` → MediaPipe model file and serialized `.pkl` models. Collected samples are not stored here (← spec 003)
   - `tests/` → Automated unit tests (← README.md)
-- Dataset tables: `samples` (id, label, created_at) and `sample_points` (id, sample_id, point_index, x, y, z). One sample has many points. `sample_points.sample_id` references `samples.id` and deleting a sample deletes its points (← src/schema.sql)
+- Dataset tables: `epression` (id, label) is the parent with one row per vowel. `samples` (id, epression_id, points JSONB, created_at) is the child with one row per capture; `points` holds the 21 normalized points (63 numbers). `samples.epression_id` references `epression.id` and deleting an epression row deletes its samples. No photos are stored (← spec 003)
 - Dependency rules: `src/main.py` orchestrates camera and modules inside `src/` (← README.md). Camera and capture code must not import the Postgres driver. `main.py` injects the repository, the same way it injects `HandDetector` (← spec 003). `src/database.py` is the only module that reads `DATABASE_URL` (← src/database.py)
 
 ## Conventions

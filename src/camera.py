@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import numpy as np
 
@@ -5,7 +7,7 @@ from dataset import VOWELS, normalize_landmarks
 from hands import NO_HAND_TEXT
 
 WINDOW_NAME = "SignLanguage - Camara"
-OVERLAY_TEXT = "Hola Mundo - Presiona 'q' para salir"
+MESSAGE_SECONDS = 2
 
 WINDOW_SCALE_WIDTH = 0.9
 WINDOW_SCALE_HEIGHT = 0.85
@@ -39,7 +41,6 @@ def get_window_size(default):
 
 def draw_frame(frame, detector):
     frame = cv2.flip(frame, 1)
-    cv2.putText(frame, OVERLAY_TEXT, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     if detector is not None:
         if detector.process(frame) == 0:
             cv2.putText(frame, NO_HAND_TEXT, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
@@ -63,6 +64,7 @@ def run_camera(cap, detector=None, repository=None):
     try:
         window_size = None
         message = ""
+        message_at = 0.0
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -71,6 +73,8 @@ def run_camera(cap, detector=None, repository=None):
                 height, width = frame.shape[:2]
                 window_size = setup_window(width / height)
             frame = draw_frame(frame, detector)
+            if message and time.monotonic() - message_at > MESSAGE_SECONDS:
+                message = ""
             if message:
                 cv2.putText(frame, message, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
             cv2.imshow(WINDOW_NAME, render_frame(frame, *get_window_size(window_size)))
@@ -82,6 +86,9 @@ def run_camera(cap, detector=None, repository=None):
                 if len(hands) == 1:
                     repository.save_sample(key, normalize_landmarks(hands[0]))
                     message = f"Guardada muestra: {key.upper()}"
+                    message_at = time.monotonic()
+                else:
+                    print(f"No se guardó {key.upper()}: se detectaron {len(hands)} manos, se requiere 1")
     finally:
         if detector is not None:
             detector.close()

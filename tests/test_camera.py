@@ -18,7 +18,7 @@ class FakeCapture:
         self.released = True
 
 
-def test_run_camera_mirrors_draws_overlay_and_exits_on_q(monkeypatch):
+def test_run_camera_mirrors_and_exits_on_q(monkeypatch):
     frame = np.zeros((4, 6, 3), dtype=np.uint8)
     frame[:, :3] = 255
     cap = FakeCapture([frame, frame])
@@ -40,7 +40,7 @@ def test_run_camera_mirrors_draws_overlay_and_exits_on_q(monkeypatch):
     assert name == camera.WINDOW_NAME
     assert last_image[0, 0, 0] == 0
     assert last_image[0, -1, 0] == 255
-    assert texts and all(t == camera.OVERLAY_TEXT for t in texts)
+    assert texts == []
     assert cap.released is True
     assert destroyed == [True]
 

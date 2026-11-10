@@ -6,6 +6,7 @@ from mediapipe.tasks.python import vision
 NO_HAND_TEXT = "Mano no detectada"
 
 MODEL_PATH = "data/hand_landmarker.task"
+MIN_CONFIDENCE = 0.3
 
 # Standard MediaPipe hand connections (indices of the 21 landmarks).
 HAND_CONNECTIONS = [
@@ -28,6 +29,9 @@ class HandDetector:
         options = vision.HandLandmarkerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=model_path),
             num_hands=max_num_hands,
+            min_hand_detection_confidence=MIN_CONFIDENCE,
+            min_hand_presence_confidence=MIN_CONFIDENCE,
+            min_tracking_confidence=MIN_CONFIDENCE,
         )
         self._landmarker = vision.HandLandmarker.create_from_options(options)
         self._hands_landmarks = []
