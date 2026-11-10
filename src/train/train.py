@@ -1,8 +1,14 @@
+import os
 import pickle
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 from sklearn.ensemble import RandomForestClassifier
+
+SRC_DIR = Path(__file__).resolve().parents[1]
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 MODEL_PATH = Path(__file__).resolve().parents[2] / "data" / "language_sing_model.pkl"
 TARGET = "a"
@@ -15,6 +21,8 @@ class TrainingResult:
 
 def train_model(repo, model_path):
     samples = repo.load_samples()
+    if not samples:
+        raise ValueError("no hay muestras guardadas")
     held_out = next(sample for sample in samples if sample[0] == TARGET)
     training = [sample for sample in samples if sample is not held_out]
 
@@ -34,11 +42,20 @@ def train_model(repo, model_path):
 def main():
     from dbConf.database import PostgresSampleRepository, connect_from_env
 
-    conn = connect_from_env()
+    if "DATABASE_URL" not in os.environ:
+        print("Error: falta DATABASE_URL en el entorno o en .env", file=sys.stderr)
+        sys.exit(1)
+
+    conn = None
     try:
+        conn = connect_from_env()
         result = train_model(PostgresSampleRepository(conn), MODEL_PATH)
+    except Exception as error:
+        print(f"Error: no se pudo entrenar el modelo: {error}", file=sys.stderr)
+        sys.exit(1)
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
     if result.recognized_a:
         print('La muestra de "a" fue reconocida como "a".')
     else:

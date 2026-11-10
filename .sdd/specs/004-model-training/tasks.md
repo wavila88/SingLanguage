@@ -15,7 +15,7 @@ Manual check: Run `python src/train/train.py`, then run it again, and confirm th
 Test: `tests/test_train.py` asserts that a missing `DATABASE_URL`, an unreachable database, or no samples prints an error to stderr, exits with code 1, and leaves the current model file unchanged.
 Manual check: Unset `DATABASE_URL`, run `python src/train/train.py`, and confirm the stderr error, exit code 1, and that `data/vowel_model.pkl` is unchanged.
 
-- [ ] 2.1 Failing test — result: ________
-- [ ] 2.2 Implementation — files: ________
-- [ ] 2.3 Passing test — result: ________
-- [ ] 2.4 Developer approval
+- [x] 2.1 Failing test — result: `FAILED: KeyError: 'DATABASE_URL'`, `FAILED: OperationalError: no se pudo conectar`, `FAILED: StopIteration` (tests/test_train.py, 3 tests)
+- [x] 2.2 Implementation — files: `src/train/train.py` (`main` checks `DATABASE_URL`, catches errors → stderr + `sys.exit(1)`; `train_model` raises `ValueError` when there are no samples; added `import os`, `import sys`)
+- [x] 2.3 Passing test — result: `python -m pytest -q` → 16 passed
+- [x] 2.4 Developer approval

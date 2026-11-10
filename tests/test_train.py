@@ -3,10 +3,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+import psycopg
+import pytest
+
+import dbConf.database  # noqa: F401  carga .env antes de que los tests borren variables
+import train.train as train_script
 from train.train import train_model
 
 ROOT = Path(__file__).resolve().parents[1]
 VOWELS = "aeiou"
+OLD_MODEL = b"old model bytes"
 
 
 class FakeSampleRepository:
@@ -55,6 +61,64 @@ def test_held_out_a_sample_is_reported_as_recognized(tmp_path):
     result = train_model(repo, tmp_path / "vowel_model.pkl")
 
     assert result.recognized_a is True
+
+
+class EmptyCursor:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def execute(self, query, params=None):
+        pass
+
+    def fetchall(self):
+        return []
+
+
+class EmptyConnection:
+    def cursor(self):
+        return EmptyCursor()
+
+    def close(self):
+        pass
+
+
+def _run_main_expecting_error(monkeypatch, capsys, model_path):
+    model_path.write_bytes(OLD_MODEL)
+    monkeypatch.setattr(train_script, "MODEL_PATH", model_path)
+
+    with pytest.raises(SystemExit) as exc:
+        train_script.main()
+
+    assert exc.value.code == 1
+    assert "error" in capsys.readouterr().err.lower()
+    assert model_path.read_bytes() == OLD_MODEL
+
+
+def test_missing_database_url_prints_error_exits_1_and_keeps_model(monkeypatch, capsys, tmp_path):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    _run_main_expecting_error(monkeypatch, capsys, tmp_path / "vowel_model.pkl")
+
+
+def test_unreachable_database_prints_error_exits_1_and_keeps_model(monkeypatch, capsys, tmp_path):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://unreachable")
+
+    def unreachable(url):
+        raise psycopg.OperationalError("no se pudo conectar")
+
+    monkeypatch.setattr("dbConf.database.connect", unreachable)
+
+    _run_main_expecting_error(monkeypatch, capsys, tmp_path / "vowel_model.pkl")
+
+
+def test_no_samples_prints_error_exits_1_and_keeps_model(monkeypatch, capsys, tmp_path):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://fake")
+    monkeypatch.setattr("dbConf.database.connect", lambda url: EmptyConnection())
+
+    _run_main_expecting_error(monkeypatch, capsys, tmp_path / "vowel_model.pkl")
 
 
 def test_training_does_not_load_camera_or_database_driver():
