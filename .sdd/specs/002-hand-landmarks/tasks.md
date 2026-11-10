@@ -15,7 +15,7 @@ Manual check: Run `python src/main.py`, show one hand, then both, then none, and
 Test: `tests/test_hands.py` asserts that a MediaPipe init failure prints an error and exits with code 1, and that pressing `q` releases both the hand detector and the camera.
 Manual check: Run `python src/main.py`, press `q`, and confirm the camera light turns off and no process stays open.
 
-- [ ] 2.1 Failing test — result: ________
-- [ ] 2.2 Implementation — files: ________
-- [ ] 2.3 Passing test — result: ________
-- [ ] 2.4 Developer approval
+- [x] 2.1 Failing test — result: 2 failed: `test_q_releases_both_detector_and_camera` (AssertionError: assert False is True — detector never closed) and `test_detector_init_failure_prints_error_exits_1_and_releases_camera` (RuntimeError propagates from main.main instead of a controlled exit code 1)
+- [x] 2.2 Implementation — files: `src/camera.py` (run_camera closes the detector in `finally` alongside the camera), `src/main.py` (try/except around HandDetector init → error to stderr + exit 1, camera released in `finally`; removed the now-redundant `detector.close()` since run_camera owns it)
+- [x] 2.3 Passing test — result: 7 passed (`python -m pytest -q`); note: the Phase 1 FakeDetector helper gained a `close()` method so it matches the detector interface — no test assertions changed
+- [x] 2.4 Developer approval

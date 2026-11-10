@@ -73,5 +73,7 @@ def run_camera(cap, detector=None):
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
     finally:
+        if detector is not None:
+            detector.close()
         cap.release()
         cv2.destroyAllWindows()
