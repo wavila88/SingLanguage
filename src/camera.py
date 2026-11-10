@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+from dataset import VOWELS, normalize_landmarks
 from hands import NO_HAND_TEXT
 
 WINDOW_NAME = "SignLanguage - Camara"
@@ -58,9 +59,10 @@ def render_frame(frame, window_w, window_h):
     return canvas
 
 
-def run_camera(cap, detector=None):
+def run_camera(cap, detector=None, repository=None):
     try:
         window_size = None
+        message = ""
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -69,9 +71,17 @@ def run_camera(cap, detector=None):
                 height, width = frame.shape[:2]
                 window_size = setup_window(width / height)
             frame = draw_frame(frame, detector)
+            if message:
+                cv2.putText(frame, message, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
             cv2.imshow(WINDOW_NAME, render_frame(frame, *get_window_size(window_size)))
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            key = chr(cv2.waitKey(1) & 0xFF)
+            if key == "q":
                 break
+            if repository is not None and key in VOWELS and detector is not None:
+                hands = detector.landmarks()
+                if len(hands) == 1:
+                    repository.save_sample(key, normalize_landmarks(hands[0]))
+                    message = f"Guardada muestra: {key.upper()}"
     finally:
         if detector is not None:
             detector.close()

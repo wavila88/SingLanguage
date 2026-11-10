@@ -43,6 +43,10 @@ class HandDetector:
     def hands_count(self):
         return len(self._hands_landmarks)
 
+    def landmarks(self):
+        """21 (x, y, z) points for each hand in the last processed frame."""
+        return [[(lm.x, lm.y, lm.z) for lm in hand] for hand in self._hands_landmarks]
+
     def draw(self, frame):
         """Draw 21 landmarks and finger connections for the last processed frame."""
         height, width = frame.shape[:2]

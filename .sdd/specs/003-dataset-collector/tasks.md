@@ -15,9 +15,9 @@ Manual check: Open Neon and confirm `samples`, `sample_points`, and the foreign 
 Test: `tests/test_dataset.py` asserts that pressing `a`, `e`, `i`, `o`, or `u` with one hand saves one normalized 21-point sample to a fake repository, the window confirms that vowel, and no database driver is opened.
 Manual check: Run `python src/main.py`, show one hand, press `a`, and confirm the window reports the saved vowel.
 
-- [ ] 2.1 Failing test — result: ________
-- [ ] 2.2 Implementation — files: ________
-- [ ] 2.3 Passing test — result: ________
+- [x] 2.1 Failing test — result: FAILED: ModuleNotFoundError: No module named 'src.dataset' (`tests/test_dataset.py`)
+- [x] 2.2 Implementation — files: `src/dataset.py` (new: `VOWELS`, `SampleRepository` port, `normalize_landmarks`), `src/camera.py` (`run_camera(cap, detector, repository)` saves on a vowel key with one hand and shows the confirmation), `src/hands.py` (`HandDetector.landmarks()`)
+- [x] 2.3 Passing test — result: 13 passed (`python -m pytest -q`); the 5 vowel cases and the normalization case pass
 - [ ] 2.4 Developer approval
 
 ## Phase 3 — Append the sample to Neon as samples and sample_points (covers HP-2)
