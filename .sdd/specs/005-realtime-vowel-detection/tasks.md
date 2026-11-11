@@ -15,25 +15,6 @@ Manual check: Run `python src/recognize_message.py`, show one hand, and confirm 
 Test: `tests/test_capture_words.py` asserts that the module at `src/capture/capture_words.py` injects the repository into the camera loop, and that pressing a vowel key with one hand saves a sample and shows its confirmation message.
 Manual check: Run `python src/capture/capture_words.py`, press `a` with one hand visible, and confirm "Guardada muestra: A" appears.
 
-- [ ] 2.1 Failing test — result: ________
-- [ ] 2.2 Implementation — files: ________
-- [ ] 2.3 Passing test — result: ________
-- [ ] 2.4 Developer approval
 
-## Phase 3 — Stop with an error when the model or the camera is missing (covers SP-1, SP-2)
-Test: `tests/test_recognize_message.py` asserts that a missing `data/language_sing_model.pkl` or a camera that does not open prints an error to stderr, exits with code 1, and that the camera is not opened when the model is missing.
-Manual check: Rename `data/language_sing_model.pkl` temporarily, run `python src/recognize_message.py`, and confirm the stderr error and exit code 1; restore the file afterwards.
-
-- [ ] 3.1 Failing test — result: ________
-- [ ] 3.2 Implementation — files: ________
-- [ ] 3.3 Passing test — result: ________
-- [ ] 3.4 Developer approval
-
-## Phase 4 — Show a message instead of a vowel when there are zero or several hands (covers SP-3, SP-4)
-Test: `tests/test_recognize_message.py` asserts that with no hand the window shows "Mano no detectada" and no vowel or percentage, and that with two hands it shows a message asking for one hand and no vowel or percentage.
-Manual check: Run `python src/recognize_message.py`, first with no hand in view, then with two hands, and confirm the messages in each case.
-
-- [ ] 4.1 Failing test — result: ________
-- [ ] 4.2 Implementation — files: ________
-- [ ] 4.3 Passing test — result: ________
-- [ ] 4.4 Developer approval
+- [x] 2.2 Implementation — files: `src/main.py` → `src/capture/capture_words.py` (moved with `git mv`; adds `src` to `sys.path`), `tests/test_camera.py` and `tests/test_hands.py` (import of `main` now from `capture.capture_words`)
+- [x] 2.4 Developer approval

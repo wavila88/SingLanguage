@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from src import camera, main
+from src import camera
+from capture import capture_words as main
 
 
 class FakeCapture:
@@ -78,3 +79,26 @@ def test_main_reports_error_and_exits_when_camera_cannot_open(monkeypatch, capsy
     assert exc.value.code == 1
     assert started == []
     assert "cámara" in capsys.readouterr().err.lower()
+
+
+def test_ctrl_c_releases_camera_without_closing_detector(monkeypatch):
+    frame = np.zeros((4, 6, 3), dtype=np.uint8)
+    cap = FakeCapture([frame])
+
+    class InterruptedDetector:
+        closed = False
+
+        def process(self, image):
+            raise KeyboardInterrupt
+
+        def close(self):
+            self.closed = True
+
+    detector = InterruptedDetector()
+    monkeypatch.setattr(camera, "setup_window", lambda aspect_ratio: (100, 100))
+    monkeypatch.setattr(camera.cv2, "destroyAllWindows", lambda: None)
+
+    camera.run_camera(cap, detector)
+
+    assert cap.released is True
+    assert detector.closed is False

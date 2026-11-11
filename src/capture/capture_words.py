@@ -1,6 +1,11 @@
 import sys
+from pathlib import Path
 
 import cv2
+
+SRC_DIR = Path(__file__).resolve().parents[1]
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from camera import run_camera
 from dbConf.database import PostgresSampleRepository, connect_from_env, create_sample_tables

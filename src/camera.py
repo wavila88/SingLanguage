@@ -100,6 +100,10 @@ def run_camera(cap, detector=None, repository=None, predict=None):
                     message_at = time.monotonic()
                 else:
                     print(f"No se guardó {key.upper()}: se detectaron {len(hands)} manos, se requiere 1")
+    except KeyboardInterrupt:
+        # Ctrl+C can land in the middle of a MediaPipe call; closing the landmarker then blocks
+        # forever waiting on that call. Skip close and let process exit release the native resources.
+        detector = None
     finally:
         if detector is not None:
             detector.close()

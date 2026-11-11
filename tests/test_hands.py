@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from src import camera, hands, main
+from src import camera, hands
+from capture import capture_words as main
 
 
 class FakeCapture:
