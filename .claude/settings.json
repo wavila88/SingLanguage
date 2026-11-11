@@ -1,6 +1,7 @@
 {
   "enabledPlugins": {
-    "sdd@sdd-kit": true
+    "sdd@sdd-kit": true,
+    "superpowers@superpowers-marketplace": true
   },
   "extraKnownMarketplaces": {
     "sdd-kit": {
