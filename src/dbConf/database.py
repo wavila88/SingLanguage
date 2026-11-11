@@ -38,6 +38,17 @@ class PostgresSampleRepository:
             if cur.fetchone() is None:
                 raise ValueError(f"Vocal desconocida: {label}")
 
+    def open_expression(self, label, kind):
+        """Create the expression if it is new and return how many samples of `kind` it has."""
+        with self._conn.transaction(), self._conn.cursor() as cur:
+            cur.execute("INSERT INTO epression (label) VALUES (%s) ON CONFLICT (label) DO NOTHING", (label,))
+            cur.execute(
+                "SELECT COUNT(*) FROM samples s JOIN epression e ON e.id = s.epression_id "
+                "WHERE e.label = %s AND s.kind = %s",
+                (label, kind),
+            )
+            return cur.fetchone()[0]
+
     def load_samples(self):
         with self._conn.cursor() as cur:
             cur.execute(

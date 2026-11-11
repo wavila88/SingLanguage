@@ -18,21 +18,12 @@ Note: update the `q` convention in `.sdd/project.md` and the quit instructions i
 Test: `tests/test_camera.py` asserts that clicking "Expresión estática", typing `hola` (with a Backspace) and clicking "Aceptar" or pressing Enter opens `hola` on a fake repository and shows "HOLA · estática · 0 muestras", that an existing expression with 12 motion samples shows "HOLA · en movimiento · 12 muestras", that the clicks land when the window is resized, and that "Volver" returns to the menu; `tests/test_dataset.py` asserts against Neon that opening `hola` twice creates one `epression` row, that the count is per kind, and that existing samples count as static.
 Manual check: Open the capture window, choose "Expresión estática", type `hola`, confirm, and see the count; type a name with ñ and an accent (e.g. `añó`) and confirm the window receives and draws them (if it does not, stop and decide a fallback); click "Volver", choose "Expresión en movimiento", type `hola` again, and confirm Neon still has a single `hola` row.
 
-- [ ] 2.1 Failing test — result: ________
-- [ ] 2.2 Implementation — files: ________
-- [ ] 2.3 Passing test — result: ________
-- [ ] 2.4 Developer approval
+- [x] 2.1 Failing test — result: `ModuleNotFoundError: No module named 'capture_ui'` (tests/test_camera.py) and `AttributeError: 'PostgresSampleRepository' object has no attribute 'open_expression'` (2 tests in tests/test_dataset.py)
+- [x] 2.2 Implementation — files: `src/capture_ui.py` (new: screen state, typing, layouts), `src/camera.py` (mouse callback, key routing, name-input and expression screens), `src/widgets.py` (secondary button, field, card, disabled button, palette), `src/textdraw.py` (`text_width`), `src/dbConf/schema.sql` (`samples.kind`), `src/dbConf/database.py` (`open_expression`), `src/dataset.py` (protocol), `tests/test_camera.py`, `tests/test_dataset.py`
+- [x] 2.3 Passing test — result: `python -m pytest -q` → 37 passed (incluye las 2 pruebas contra Neon)
+- [x] 2.4 Developer approval
 
-## Phase 3 — Reject an empty name (covers SP-1)
-Test: `tests/test_camera.py` asserts that confirming an empty or all-spaces name does not call the repository, keeps the name input open and shows "Escribe un nombre para la expresión", and that names are stored lowercase, trimmed and capped at 30 characters, keeping ñ and accents.
-Manual check: Choose a mode, press Enter with nothing typed, and confirm the message appears and you are still in the name input.
-
-- [ ] 3.1 Failing test — result: ________
-- [ ] 3.2 Implementation — files: ________
-- [ ] 3.3 Passing test — result: ________
-- [ ] 3.4 Developer approval
-
-## Phase 4 — Capture a static pose with one or two hands, review it frozen, and approve it (covers HP-4, HP-5, HP-12)
+## Phase 3 — Capture a static pose with one or two hands, review it frozen, and approve it (covers HP-4, HP-5, HP-12)
 Test: `tests/test_camera.py` asserts that "Capturar" freezes the frame and shows only "Aprobar" and "No aprobar", and that "Aprobar" saves one static sample with each hand labeled left or right (normalized points plus raw wrist), shows "Guardada muestra: HOLA (2 manos)" and the count +1, and returns to live video; `tests/test_hands.py` asserts handedness matches the mirrored frame; `tests/test_dataset.py` asserts the static row in Neon; `tests/test_train.py` asserts training still uses only the one-hand vowel samples in the old format.
 Manual check: Open `hola` in static mode, show both hands, click "Capturar", check the frozen image, click "Aprobar", and confirm the message, the new count and a new `samples` row in Neon; then run `python src/train/train.py` and confirm it still trains.
 

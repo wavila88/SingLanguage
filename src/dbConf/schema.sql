@@ -11,3 +11,5 @@ CREATE TABLE IF NOT EXISTS samples (
     points JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE samples ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'static' CHECK (kind IN ('static', 'motion'));

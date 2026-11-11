@@ -29,3 +29,7 @@ def draw_text(frame, text, origin, color=WHITE, size=FONT_SIZE, anchor="ls", bol
     ImageDraw.Draw(image).text(origin, text, font=_font(size, bold), fill=color[::-1], anchor=anchor)
     frame[:] = np.asarray(image)[:, :, ::-1]
     return frame
+
+
+def text_width(text, size, bold=False):
+    return round(_font(size, bold).getlength(text))

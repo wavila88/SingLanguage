@@ -1,13 +1,17 @@
 import cv2
 import numpy as np
 
+from capture_ui import CaptureUI, MODE_BUTTONS, MODE_KEYS, expression_layout, menu_layout, name_layout
 from hands import NO_HAND_TEXT
-from textdraw import draw_text
-from widgets import (BUTTON_HEIGHT, BUTTON_MARGIN, BUTTON_TEXT_SIZE, PRIMARY_TEXT, draw_primary_button,
-                     draw_strip, scale_for)
+from textdraw import draw_text, text_width
+from widgets import (BUTTON_TEXT_SIZE, PRIMARY_TEXT, TEXT, TEXT_SECONDARY, draw_card, draw_field, draw_primary_button,
+                     draw_primary_disabled_button, draw_rounded_rect, draw_secondary_button, draw_strip, scale_for,
+                     FIELD_BORDER, STRIP_FILL)
 
 WINDOW_NAME = "SignLanguage - Camara"
-MODE_BUTTONS = ("Expresión estática", "Expresión en movimiento")
+NAME_PLACEHOLDER = "Nombre de la expresión"
+NAME_LABEL = "Nombre de la expresión"
+NAME_HINT = "Puedes usar ñ y acentos."
 
 WINDOW_SCALE_WIDTH = 0.9
 WINDOW_SCALE_HEIGHT = 0.85
@@ -56,21 +60,86 @@ def draw_frame(frame, detector):
     return frame
 
 
+def _label(frame, text, rect, color, scale, bold=True, size=BUTTON_TEXT_SIZE):
+    draw_text(frame, text, ((rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2), color[::-1],
+              size=max(1, round(size * scale)), anchor="mm", bold=bold)
+
+
 def draw_menu(frame):
     """Draw the mode buttons side by side on a bottom strip, leaving the center of the video free."""
     height, width = frame.shape[:2]
     scale = scale_for(frame)
-    margin, button_height = round(BUTTON_MARGIN * scale), round(BUTTON_HEIGHT * scale)
-    count = len(MODE_BUTTONS)
-    button_width = (width - (count + 1) * margin) // count
-    top = height - margin - button_height
     draw_strip(frame)
-    for index, label in enumerate(MODE_BUTTONS):
-        left = margin + index * (button_width + margin)
-        draw_primary_button(frame, (left, top), (left + button_width, top + button_height), scale)
-        draw_text(frame, label, (left + button_width // 2, top + button_height // 2), PRIMARY_TEXT[::-1],
-                  size=max(1, round(BUTTON_TEXT_SIZE * scale)), anchor="mm", bold=True)
+    layout = menu_layout(width, height)
+    for key, label in zip(MODE_KEYS, MODE_BUTTONS):
+        rect = layout[key]
+        draw_primary_button(frame, rect[:2], rect[2:], scale)
+        _label(frame, label, rect, PRIMARY_TEXT, scale)
     return frame
+
+
+def draw_name_input(frame, ui):
+    """Card with the chosen mode, the name field and the Volver and Aceptar buttons."""
+    height, width = frame.shape[:2]
+    scale = scale_for(frame)
+    layout = name_layout(width, height)
+    draw_card(frame, layout["card"][:2], layout["card"][2:], scale)
+    draw_text(frame, ui.title, layout["title"], TEXT[::-1], size=round(22 * scale), anchor="lm", bold=True)
+    draw_text(frame, NAME_LABEL, layout["label"], TEXT_SECONDARY[::-1], size=round(13 * scale), anchor="lm")
+    field = layout["field"]
+    draw_field(frame, field[:2], field[2:], scale, focused=bool(ui.name))
+    text_origin = (field[0] + round(14 * scale), (field[1] + field[3]) // 2)
+    text_size = round(18 * scale)
+    if ui.name:
+        draw_text(frame, ui.name, text_origin, TEXT[::-1], size=text_size, anchor="lm")
+        cursor_x = text_origin[0] + text_width(ui.name, text_size) + round(2 * scale)
+        cv2.line(frame, (cursor_x, field[1] + round(10 * scale)), (cursor_x, field[3] - round(10 * scale)),
+                 TEXT[::-1], max(1, round(scale)))
+    else:
+        draw_text(frame, NAME_PLACEHOLDER, text_origin, TEXT_SECONDARY[::-1], size=text_size, anchor="lm")
+    draw_text(frame, NAME_HINT, layout["hint"], TEXT_SECONDARY[::-1], size=round(13 * scale), anchor="lm")
+    draw_secondary_button(frame, layout["back"][:2], layout["back"][2:], scale)
+    _label(frame, "Volver", layout["back"], TEXT, scale)
+    accept = layout["accept"]
+    if ui.name.strip():
+        draw_primary_button(frame, accept[:2], accept[2:], scale)
+        _label(frame, "Aceptar", accept, PRIMARY_TEXT, scale)
+    else:
+        draw_primary_disabled_button(frame, accept[:2], accept[2:], scale)
+        _label(frame, "Aceptar", accept, TEXT_SECONDARY, scale)
+    return frame
+
+
+def draw_expression(frame, ui):
+    """Chip with the open expression, its mode and sample count, and the Volver button."""
+    height, width = frame.shape[:2]
+    scale = scale_for(frame)
+    layout = expression_layout(width, height)
+    chip = layout["chip"]
+    draw_rounded_rect(frame, chip[:2], chip[2:], STRIP_FILL, FIELD_BORDER, round(10 * scale))
+    draw_text(frame, ui.chip_text, (chip[0] + round(12 * scale), (chip[1] + chip[3]) // 2), TEXT[::-1],
+              size=round(16 * scale), anchor="lm", bold=True)
+    draw_strip(frame)
+    back = layout["back"]
+    draw_secondary_button(frame, back[:2], back[2:], scale)
+    _label(frame, "Volver", back, TEXT, scale)
+    return frame
+
+
+def draw_capture_screen(frame, ui):
+    if ui.screen == "name":
+        return draw_name_input(frame, ui)
+    if ui.screen == "expression":
+        return draw_expression(frame, ui)
+    return draw_menu(frame)
+
+
+def window_to_frame(x, y, frame_size, window_size):
+    """Translate a click in the window to video-frame pixels (the video is scaled and centered on black bars)."""
+    frame_w, frame_h = frame_size
+    window_w, window_h = window_size
+    scale = min(window_w / frame_w, window_h / frame_h)
+    return (x - (window_w - frame_w * scale) / 2) / scale, (y - (window_h - frame_h * scale) / 2) / scale
 
 
 def render_frame(frame, window_w, window_h):
@@ -87,6 +156,8 @@ def render_frame(frame, window_w, window_h):
 def run_camera(cap, detector=None, repository=None, predict=None):
     try:
         window_size = None
+        ui = CaptureUI(repository) if repository is not None else None
+        clicks = []
         while True:
             ret, frame = cap.read()
             if not ret or (window_size is not None and window_closed()):
@@ -94,15 +165,26 @@ def run_camera(cap, detector=None, repository=None, predict=None):
             if window_size is None:
                 height, width = frame.shape[:2]
                 window_size = setup_window(width / height)
+                if ui is not None:
+                    cv2.setMouseCallback(WINDOW_NAME, lambda event, x, y, flags, param: (
+                        clicks.append((x, y)) if event == cv2.EVENT_LBUTTONDOWN else None))
             frame = draw_frame(frame, detector)
+            if ui is not None:
+                current_size = get_window_size(window_size)
+                frame_size = (frame.shape[1], frame.shape[0])
+                while clicks:
+                    x, y = window_to_frame(*clicks.pop(0), frame_size, current_size)
+                    ui.click(x, y, *frame_size)
             if predict is not None and detector is not None:
                 text = predict(detector)
                 if text:
                     draw_text(frame, text, (10, 120))
-            if repository is not None:
-                draw_menu(frame)
+            if ui is not None:
+                draw_capture_screen(frame, ui)
             cv2.imshow(WINDOW_NAME, render_frame(frame, *get_window_size(window_size)))
-            cv2.waitKey(1)
+            key = cv2.waitKey(1)
+            if ui is not None:
+                ui.key(key)
     except KeyboardInterrupt:
         # Ctrl+C can land in the middle of a MediaPipe call; closing the landmarker then blocks
         # forever waiting on that call. Skip close and let process exit release the native resources.

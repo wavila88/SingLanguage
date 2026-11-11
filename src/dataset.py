@@ -10,6 +10,8 @@ MIDDLE_MCP = 9
 class SampleRepository(Protocol):
     def save_sample(self, label, points): ...
 
+    def open_expression(self, label, kind): ...
+
 
 def normalize_landmarks(landmarks):
     """Coordinates relative to the wrist, divided by the wrist-to-middle-knuckle distance."""
