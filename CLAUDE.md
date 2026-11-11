@@ -15,7 +15,7 @@ Run everything from the repo root, with the venv active. Dependencies: `pip inst
 
 `README.md` still says `python src/main.py`, but that file was renamed to `src/capture/capture_words.py` (uncommitted in the working tree). Use the new path.
 
-Tests do not open a real camera window: `test_camera.py` and `test_recognize_message.py` monkeypatch `cv2` and use a fake capture. `test_dataset.py` skips when `DATABASE_URL` is unset; `test_train.py` uses fake repositories and sets `DATABASE_URL` per test.
+Tests do not open a real camera window: `test_camera.py` and `test_recognize_message.py` monkeypatch `cv2` and `camera.draw_text` and use a fake capture. `test_dataset.py` skips when `DATABASE_URL` is unset; `test_train.py` uses fake repositories and sets `DATABASE_URL` per test.
 
 ## Architecture
 
@@ -23,8 +23,8 @@ The app is a set of small flat-import Python modules plus three entrypoints. The
 
 **Import paths.** `pytest.ini` sets `pythonpath = . src`, so tests can do `from camera import ...` or `from src import camera` (both styles appear; they load the same file under different module names). `src/capture/capture_words.py` and `src/train/train.py` insert `src/` into `sys.path` themselves before importing siblings. `src/recognize_message.py` relies on Python putting its own directory (`src/`) on `sys.path` when run as a script. Keep new entrypoints consistent with one of these patterns.
 
-**Shared loop.** `src/camera.py::run_camera(cap, detector, repository, predict)` is the single camera/OpenCV loop used by both windows. It mirrors each frame, runs `HandDetector` (MediaPipe, `src/hands.py`), optionally overlays `predict(detector)` text, and handles the `q` key and cleanup in a `finally`. A vowel key press saves a sample only when `repository` is given and exactly one hand is visible.
-- `capture_words.py` injects a `PostgresSampleRepository` (collection mode).
+**Shared loop.** `src/camera.py::run_camera(cap, detector, repository, predict)` is the single camera/OpenCV loop used by both windows. It mirrors each frame, runs `HandDetector` (MediaPipe, `src/hands.py`), optionally overlays `predict(detector)` text, and does cleanup in a `finally`. There are no keyboard shortcuts: the window closes only with its X (or Ctrl+C in the terminal). When `repository` is given it draws the capture menu (spec 006 is building the rest of that flow; saving samples is not available in the capture window until its phase 4). All window text goes through `src/textdraw.py::draw_text` (Pillow) so ñ and accents render; do not use `cv2.putText`.
+- `capture_words.py` injects a `PostgresSampleRepository` (collection mode, shows the menu).
 - `recognize_message.py` injects a `predict` callback (inference mode) and passes no repository, so it cannot save samples.
 
 **Data flow for the ML pipeline.**

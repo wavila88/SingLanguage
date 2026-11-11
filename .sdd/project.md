@@ -7,6 +7,7 @@ Updated: 2026-11-09 after spec 003 phase 1
 - Python 3 (← README.md)
 - opencv-python >= 4.8.0 for camera capture and UI overlay (← requirements.txt)
 - mediapipe >= 0.10.0 for 21-point hand landmark detection (← requirements.txt)
+- pillow >= 10.1.0 for window text with ñ and accents (← spec 006)
 - numpy >= 1.24.0, pandas >= 2.0.0 for landmark normalization and later training export (← requirements.txt)
 - scikit-learn >= 1.3.0 for vowel classification model training and inference (← requirements.txt)
 - psycopg[binary] >= 3.2.0 for the Neon Postgres connection (← requirements.txt)
@@ -23,7 +24,8 @@ Updated: 2026-11-09 after spec 003 phase 1
 
 ## Conventions
 - Snake_case for Python modules, functions, and variables (← README.md)
-- Exit camera loops cleanly with `q` key and release OpenCV resources (← README.md)
+- Exit camera loops cleanly by closing the window with its X and release OpenCV resources. No keyboard shortcuts (← spec 006)
+- Draw every window text with `textdraw.draw_text` (Pillow), never `cv2.putText`, so ñ and accents render (← spec 006)
 - `DATABASE_URL` comes from the environment or `.env`. Never hardcode it and never commit `.env` (← spec 003)
 
 ## Frontend

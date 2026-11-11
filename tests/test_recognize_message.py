@@ -1,6 +1,6 @@
-import cv2
 import numpy as np
 
+import camera
 from recognize_message import run_recognition
 
 
@@ -55,31 +55,46 @@ def _any_frame():
     return np.zeros((4, 6, 3), dtype=np.uint8)
 
 
-def _run(cap, detector, model, keys, monkeypatch):
+def _run(cap, detector, model, keys, monkeypatch, close_after_first_frame=False):
+    shown = []
     texts = []
-    monkeypatch.setattr(cv2, "imshow", lambda name, img: None)
-    monkeypatch.setattr(cv2, "putText", lambda img, text, *args, **kwargs: texts.append(text))
-    monkeypatch.setattr(cv2, "waitKey", lambda delay: next(keys))
+    monkeypatch.setattr(camera, "setup_window", lambda aspect_ratio: (60, 40))
+    monkeypatch.setattr(camera, "window_closed", lambda: close_after_first_frame and bool(shown))
+    monkeypatch.setattr(camera, "get_window_size", lambda default: default)
+    monkeypatch.setattr(camera.cv2, "imshow", lambda name, img: shown.append(img))
+    monkeypatch.setattr(camera.cv2, "destroyAllWindows", lambda: None)
+    monkeypatch.setattr(camera, "draw_text", lambda img, text, *args, **kwargs: texts.append(text))
+    monkeypatch.setattr(camera.cv2, "waitKey", lambda delay: next(keys, -1))
     run_recognition(cap, detector, model)
-    return texts
+    return shown, texts
 
 
-def test_one_hand_shows_predicted_vowel_and_confidence(monkeypatch):
+def test_one_hand_shows_predicted_vowel_and_confidence_without_the_mode_menu(monkeypatch):
     cap = FakeCapture([_any_frame(), _any_frame()])
     detector = FakeDetector([_hand()])
     model = FakeModel()
 
-    texts = _run(cap, detector, model, iter([ord("x"), ord("q")]), monkeypatch)
+    _, texts = _run(cap, detector, model, iter([ord("x"), ord("y")]), monkeypatch)
 
     assert "A 87%" in texts
     assert len(model.rows[0][0]) == 63
+    assert "Expresión estática" not in texts
 
 
-def test_q_releases_camera_and_detector(monkeypatch):
-    cap = FakeCapture([_any_frame()])
+def test_q_does_not_close_the_recognition_window(monkeypatch):
+    cap = FakeCapture([_any_frame(), _any_frame(), _any_frame()])
+
+    shown, _ = _run(cap, FakeDetector([_hand()]), FakeModel(), iter([ord("q"), ord("q"), ord("q")]), monkeypatch)
+
+    assert len(shown) == 3
+
+
+def test_closing_with_x_releases_camera_and_detector(monkeypatch):
+    cap = FakeCapture([_any_frame(), _any_frame(), _any_frame()])
     detector = FakeDetector([_hand()])
 
-    _run(cap, detector, FakeModel(), iter([ord("q")]), monkeypatch)
+    shown, _ = _run(cap, detector, FakeModel(), iter([]), monkeypatch, close_after_first_frame=True)
 
+    assert len(shown) == 1
     assert cap.released is True
     assert detector.closed is True

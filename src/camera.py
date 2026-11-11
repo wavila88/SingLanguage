@@ -1,13 +1,13 @@
-import time
-
 import cv2
 import numpy as np
 
-from dataset import VOWELS, normalize_landmarks
 from hands import NO_HAND_TEXT
+from textdraw import draw_text
+from widgets import (BUTTON_HEIGHT, BUTTON_MARGIN, BUTTON_TEXT_SIZE, PRIMARY_TEXT, draw_primary_button,
+                     draw_strip, scale_for)
 
 WINDOW_NAME = "SignLanguage - Camara"
-MESSAGE_SECONDS = 2
+MODE_BUTTONS = ("Expresión estática", "Expresión en movimiento")
 
 WINDOW_SCALE_WIDTH = 0.9
 WINDOW_SCALE_HEIGHT = 0.85
@@ -50,9 +50,26 @@ def draw_frame(frame, detector):
     frame = cv2.flip(frame, 1)
     if detector is not None:
         if detector.process(frame) == 0:
-            cv2.putText(frame, NO_HAND_TEXT, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            draw_text(frame, NO_HAND_TEXT, (10, 60), (0, 0, 255))
         else:
             frame = detector.draw(frame)
+    return frame
+
+
+def draw_menu(frame):
+    """Draw the mode buttons side by side on a bottom strip, leaving the center of the video free."""
+    height, width = frame.shape[:2]
+    scale = scale_for(frame)
+    margin, button_height = round(BUTTON_MARGIN * scale), round(BUTTON_HEIGHT * scale)
+    count = len(MODE_BUTTONS)
+    button_width = (width - (count + 1) * margin) // count
+    top = height - margin - button_height
+    draw_strip(frame)
+    for index, label in enumerate(MODE_BUTTONS):
+        left = margin + index * (button_width + margin)
+        draw_primary_button(frame, (left, top), (left + button_width, top + button_height), scale)
+        draw_text(frame, label, (left + button_width // 2, top + button_height // 2), PRIMARY_TEXT[::-1],
+                  size=max(1, round(BUTTON_TEXT_SIZE * scale)), anchor="mm", bold=True)
     return frame
 
 
@@ -70,8 +87,6 @@ def render_frame(frame, window_w, window_h):
 def run_camera(cap, detector=None, repository=None, predict=None):
     try:
         window_size = None
-        message = ""
-        message_at = 0.0
         while True:
             ret, frame = cap.read()
             if not ret or (window_size is not None and window_closed()):
@@ -83,23 +98,11 @@ def run_camera(cap, detector=None, repository=None, predict=None):
             if predict is not None and detector is not None:
                 text = predict(detector)
                 if text:
-                    cv2.putText(frame, text, (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-            if message and time.monotonic() - message_at > MESSAGE_SECONDS:
-                message = ""
-            if message:
-                cv2.putText(frame, message, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    draw_text(frame, text, (10, 120))
+            if repository is not None:
+                draw_menu(frame)
             cv2.imshow(WINDOW_NAME, render_frame(frame, *get_window_size(window_size)))
-            key = chr(cv2.waitKey(1) & 0xFF)
-            if key == "q":
-                break
-            if repository is not None and key in VOWELS and detector is not None:
-                hands = detector.landmarks()
-                if len(hands) == 1:
-                    repository.save_sample(key, normalize_landmarks(hands[0]))
-                    message = f"Guardada muestra: {key.upper()}"
-                    message_at = time.monotonic()
-                else:
-                    print(f"No se guardó {key.upper()}: se detectaron {len(hands)} manos, se requiere 1")
+            cv2.waitKey(1)
     except KeyboardInterrupt:
         # Ctrl+C can land in the middle of a MediaPipe call; closing the landmarker then blocks
         # forever waiting on that call. Skip close and let process exit release the native resources.
