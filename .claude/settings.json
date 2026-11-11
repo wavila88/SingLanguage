@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "sdd@sdd-kit": true
+  },
+  "extraKnownMarketplaces": {
+    "sdd-kit": {
+      "source": {
+        "source": "github",
+        "repo": "wavila88/sdd-kit"
+      }
+    }
+  }
+}
