@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import numpy as np
 
@@ -134,10 +136,26 @@ def draw_expression(frame, ui):
     back = layout["back"]
     draw_secondary_button(frame, back[:2], back[2:], scale)
     _label(frame, "Volver", back, TEXT, scale)
-    if ui.mode == "static":
-        capture = layout["capture"]
-        draw_primary_button(frame, capture[:2], capture[2:], scale)
-        _label(frame, "Capturar", capture, PRIMARY_TEXT, scale)
+    capture = layout["capture"]
+    draw_primary_button(frame, capture[:2], capture[2:], scale)
+    _label(frame, "Capturar" if ui.mode == "static" else "Grabar", capture, PRIMARY_TEXT, scale)
+    return frame
+
+
+def draw_recording(frame, ui):
+    """The elapsed recording time and the Detener button."""
+    height, width = frame.shape[:2]
+    scale = scale_for(frame)
+    layout = expression_layout(width, height)
+    draw_chip(frame, ui, layout, scale)
+    message = layout["message"]
+    draw_rounded_rect(frame, message[:2], message[2:], STRIP_FILL, None, round(10 * scale))
+    draw_text(frame, f"Grabando... {ui.elapsed:.1f} s", (message[0] + round(12 * scale), (message[1] + message[3]) // 2),
+              TEXT[::-1], size=round(16 * scale), anchor="lm", bold=True)
+    draw_strip(frame)
+    stop = layout["stop"]
+    draw_primary_button(frame, stop[:2], stop[2:], scale)
+    _label(frame, "Detener", stop, PRIMARY_TEXT, scale)
     return frame
 
 
@@ -161,6 +179,8 @@ def draw_capture_screen(frame, ui):
         return draw_name_input(frame, ui)
     if ui.screen == "expression":
         return draw_expression(frame, ui)
+    if ui.screen == "recording":
+        return draw_recording(frame, ui)
     if ui.screen == "review":
         return draw_review(frame, ui)
     return draw_menu(frame)
@@ -185,7 +205,7 @@ def render_frame(frame, window_w, window_h):
     return canvas
 
 
-def run_camera(cap, detector=None, repository=None, predict=None):
+def run_camera(cap, detector=None, repository=None, predict=None, clock=time.monotonic):
     try:
         window_size = None
         ui = CaptureUI(repository) if repository is not None else None
@@ -202,16 +222,19 @@ def run_camera(cap, detector=None, repository=None, predict=None):
                         clicks.append((x, y)) if event == cv2.EVENT_LBUTTONDOWN else None))
             frame = draw_frame(frame, detector)
             if ui is not None:
+                ui.now = clock()
                 ui.live_hands = list(zip(detector.handedness(), detector.landmarks())) if detector else []
                 current_size = get_window_size(window_size)
                 frame_size = (frame.shape[1], frame.shape[0])
                 while clicks:
                     x, y = window_to_frame(*clicks.pop(0), frame_size, current_size)
                     ui.click(x, y, *frame_size)
-                if ui.screen == "review" and ui.frozen is None:
+                if ui.screen == "recording":
+                    ui.record(frame.copy())
+                if ui.screen == "review" and ui.mode == "static" and ui.frozen is None:
                     ui.frozen = frame.copy()
                 if ui.screen == "review":
-                    frame = ui.frozen.copy()
+                    frame = ui.review_image().copy()
             if predict is not None and detector is not None:
                 text = predict(detector)
                 if text:

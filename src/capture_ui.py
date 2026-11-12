@@ -3,6 +3,8 @@
 Pure logic, no drawing: `camera.py` draws what this module describes. Rectangles are
 (x0, y0, x1, y1) in video-frame pixels, scaled from the 640 x 480 reference of the design.
 """
+from bisect import bisect_right
+
 from dataset import hand_record
 from widgets import BUTTON_HEIGHT, BUTTON_MARGIN, REFERENCE_WIDTH
 
@@ -13,6 +15,7 @@ MODE_TITLES = dict(zip(MODE_KEYS, MODE_BUTTONS))
 
 NO_HAND_MESSAGE = "No se capturó: no se detectó ninguna mano"
 DISCARDED_MESSAGE = "Muestra descartada"
+DEFAULT_FRAME_MS = 33  # replay length of the last frame when the recording has a single frame
 
 KEY_BACKSPACE = 8
 KEY_ENTER = (10, 13)
@@ -64,6 +67,7 @@ def expression_layout(width, height):
         "chip": (margin, margin, width - margin, margin + chip_height),
         "back": (margin, top, margin + back_width, top + button_height),
         "capture": (2 * margin + back_width, top, width - margin, top + button_height),
+        "stop": (margin, top, width - margin, top + button_height),
         "message": (margin, 2 * margin + chip_height, width - margin, 2 * margin + 2 * chip_height),
     }
 
@@ -97,6 +101,10 @@ class CaptureUI:
         self.captured = []
         self.frozen = None  # the captured video frame, set by the camera loop while reviewing
         self.message = ""
+        self.now = 0.0  # seconds, refreshed by the camera loop once per frame
+        self.recording = []  # {"ms", "hands", "image"} for every frame since "Grabar", hand or not
+        self.record_start = 0.0
+        self.replay_start = 0.0
 
     def click(self, x, y, width, height):
         if self.screen == "menu":
@@ -118,6 +126,11 @@ class CaptureUI:
                     self.captured, self.message, self.screen = list(self.live_hands), "", "review"
                 else:
                     self.message = NO_HAND_MESSAGE
+            elif self.mode == "motion" and _inside(layout["capture"], x, y):
+                self.recording, self.record_start, self.message, self.screen = [], self.now, "", "recording"
+        elif self.screen == "recording":
+            if _inside(expression_layout(width, height)["stop"], x, y):
+                self.replay_start, self.screen = self.now, "review"
         elif self.screen == "review":
             layout = review_layout(width, height)
             if _inside(layout["approve"], x, y):
@@ -135,17 +148,51 @@ class CaptureUI:
         elif code == SPACE or chr(code).isalnum():
             self.name += chr(code)
 
+    def record(self, image):
+        """Keep the video frame being shown, with the hands seen in it, while recording."""
+        ms = round((self.now - self.record_start) * 1000)
+        self.recording.append({"ms": ms, "hands": list(self.live_hands), "image": image})
+
+    @property
+    def elapsed(self):
+        return self.now - self.record_start
+
+    def review_image(self):
+        """The frame to show while reviewing: the frozen capture, or the recording replayed in a loop."""
+        if self.mode == "static":
+            return self.frozen
+        times = [frame["ms"] for frame in self.recording]
+        gap = times[-1] / (len(times) - 1) if len(times) > 1 else DEFAULT_FRAME_MS
+        position = (self.now - self.replay_start) * 1000 % max(times[-1] + gap, 1)
+        return self.recording[max(bisect_right(times, position) - 1, 0)]["image"]
+
     def _discard(self):
         self.message = DISCARDED_MESSAGE
-        self.captured, self.frozen, self.screen = [], None, "expression"
+        self.captured, self.recording, self.frozen, self.screen = [], [], None, "expression"
 
     def _approve(self):
+        if self.mode == "motion":
+            self._approve_motion()
+            return
         hands = [hand_record(side, landmarks) for side, landmarks in self.captured]
         self._repository.save_static_sample(self.expression, hands)
         self.count += 1
         noun = "mano" if len(hands) == 1 else "manos"
         self.message = f"Guardada muestra: {self.expression.upper()} ({len(hands)} {noun})"
         self.captured, self.frozen, self.screen = [], None, "expression"
+
+    def _approve_motion(self):
+        with_hands = [frame for frame in self.recording if frame["hands"]]
+        frames = [
+            {"index": index, "ms": frame["ms"],
+             "hands": [hand_record(side, landmarks) for side, landmarks in frame["hands"]]}
+            for index, frame in enumerate(with_hands)
+        ]
+        self._repository.save_motion_sample(self.expression, frames)
+        self.count += 1
+        noun = "frame" if len(frames) == 1 else "frames"
+        self.message = f"Guardada secuencia: {self.expression.upper()} ({len(frames)} {noun})"
+        self.recording, self.screen = [], "expression"
 
     def _accept(self):
         if not self.name.strip():

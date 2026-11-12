@@ -25,9 +25,17 @@ def draw_text(frame, text, origin, color=WHITE, size=FONT_SIZE, anchor="ls", bol
 
     Unlike cv2.putText, this renders ñ and accented letters.
     """
-    image = Image.fromarray(frame[:, :, ::-1])
-    ImageDraw.Draw(image).text(origin, text, font=_font(size, bold), fill=color[::-1], anchor=anchor)
-    frame[:] = np.asarray(image)[:, :, ::-1]
+    font = _font(size, bold)
+    # Only the text's own region goes through Pillow; converting the whole frame per text is too slow.
+    left, top, right, bottom = ImageDraw.Draw(Image.new("L", (1, 1))).textbbox(origin, text, font=font, anchor=anchor)
+    left, top = max(int(left) - 2, 0), max(int(top) - 2, 0)
+    right, bottom = min(int(right) + 3, frame.shape[1]), min(int(bottom) + 3, frame.shape[0])
+    if right <= left or bottom <= top:
+        return frame
+    region = frame[top:bottom, left:right]
+    image = Image.fromarray(region[:, :, ::-1])
+    ImageDraw.Draw(image).text((origin[0] - left, origin[1] - top), text, font=font, fill=color[::-1], anchor=anchor)
+    region[:] = np.asarray(image)[:, :, ::-1]
     return frame
 
 

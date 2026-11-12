@@ -14,6 +14,8 @@ class SampleRepository(Protocol):
 
     def save_static_sample(self, label, hands): ...
 
+    def save_motion_sample(self, label, frames): ...
+
 
 def hand_record(side, landmarks):
     """What is stored for one visible hand: its side, normalized points and raw wrist position."""

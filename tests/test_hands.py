@@ -108,7 +108,7 @@ class _RecordingLandmarker:
         self.result = result
         self.seen = []
 
-    def detect(self, image):
+    def detect_for_video(self, image, timestamp_ms):
         self.seen.append(image.numpy_view().copy())
         return self.result
 
@@ -124,6 +124,7 @@ def test_handedness_is_reported_per_hand_as_seen_in_the_mirrored_frame():
     )
     detector = hands.HandDetector.__new__(hands.HandDetector)
     detector._landmarker = _RecordingLandmarker(result)
+    detector._last_timestamp_ms = -1
     mirrored = np.zeros((4, 6, 3), dtype=np.uint8)
     mirrored[:, :3] = (10, 20, 30)
 

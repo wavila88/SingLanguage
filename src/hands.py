@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -28,6 +30,7 @@ class HandDetector:
     def __init__(self, max_num_hands=2, model_path=MODEL_PATH):
         options = vision.HandLandmarkerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=model_path),
+            running_mode=vision.RunningMode.VIDEO,  # tracks hands between frames instead of searching each one anew
             num_hands=max_num_hands,
             min_hand_detection_confidence=MIN_CONFIDENCE,
             min_hand_presence_confidence=MIN_CONFIDENCE,
@@ -36,12 +39,15 @@ class HandDetector:
         self._landmarker = vision.HandLandmarker.create_from_options(options)
         self._hands_landmarks = []
         self._handedness = []
+        self._last_timestamp_ms = -1
 
     def process(self, frame):
         """Detect hands in the frame and return how many were found."""
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb.astype(np.uint8))
-        result = self._landmarker.detect(image)
+        timestamp_ms = max(int(time.monotonic() * 1000), self._last_timestamp_ms + 1)  # must strictly increase
+        self._last_timestamp_ms = timestamp_ms
+        result = self._landmarker.detect_for_video(image, timestamp_ms)
         self._hands_landmarks = result.hand_landmarks
         self._handedness = [hand[0].category_name.lower() for hand in result.handedness]
         return self.hands_count()

@@ -32,11 +32,19 @@ def draw_rounded_rect(frame, top_left, bottom_right, fill, outline=None, radius=
     """Blend a rounded rectangle (RGBA fill and outline) in place on a BGR frame."""
     x0, y0 = top_left
     x1, y1 = max(bottom_right[0] - 1, x0), max(bottom_right[1] - 1, y0)
-    image = Image.fromarray(frame[:, :, ::-1]).convert("RGBA")
+    # Work on the rectangle's own region only: converting the whole frame for every shape made the
+    # window too slow (about 10 frames per second), which is bad for hand tracking.
+    left, top = max(x0, 0), max(y0, 0)
+    right, bottom = min(x1 + 1, frame.shape[1]), min(y1 + 1, frame.shape[0])
+    if right <= left or bottom <= top:
+        return frame
+    region = frame[top:bottom, left:right]
+    image = Image.fromarray(region[:, :, ::-1]).convert("RGBA")
     layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
     ImageDraw.Draw(layer).rounded_rectangle(
-        (x0, y0, x1, y1), radius=min(radius, (y1 - y0) // 2), fill=fill, outline=outline, width=2)
-    frame[:] = np.asarray(Image.alpha_composite(image, layer).convert("RGB"))[:, :, ::-1]
+        (x0 - left, y0 - top, x1 - left, y1 - top), radius=min(radius, (y1 - y0) // 2), fill=fill,
+        outline=outline, width=2)
+    region[:] = np.asarray(Image.alpha_composite(image, layer).convert("RGB"))[:, :, ::-1]
     return frame
 
 

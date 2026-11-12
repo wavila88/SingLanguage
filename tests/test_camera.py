@@ -102,7 +102,14 @@ def _play(monkeypatch, steps, repository=None, window=(640, 480), detector=None,
     handler = {}
     per_frame, current = [], []
 
+    clock_state = {"now": 0.0}  # half a second per frame, so recordings have predictable timing
+
     def wait_key(delay):
+        result = next_key(delay)
+        clock_state["now"] += 0.5
+        return result
+
+    def next_key(delay):
         step = queue.pop(0) if queue else None
         if step is None:
             return -1
@@ -128,7 +135,7 @@ def _play(monkeypatch, steps, repository=None, window=(640, 480), detector=None,
                         lambda name, callback, *args: handler.__setitem__("callback", callback))
     monkeypatch.setattr(camera, "draw_text", lambda img, text, *args, **kwargs: current.append(text))
     cap = FakeCapture([np.full((480, 640, 3), 10 * (index + 1), dtype=np.uint8) for index in range(len(queue) + 2)])
-    camera.run_camera(cap, detector or FakeDetector(), repository)
+    camera.run_camera(cap, detector or FakeDetector(), repository, clock=lambda: clock_state["now"])
     return per_frame
 
 

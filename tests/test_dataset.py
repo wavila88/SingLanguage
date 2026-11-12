@@ -16,6 +16,7 @@ def conn():
     if not url:
         pytest.skip("DATABASE_URL no configurada")
     connection = connect(url)
+    connection.autocommit = True  # so the cleanup DELETEs in each test are really committed
     create_sample_tables(connection)
     yield connection
     connection.close()

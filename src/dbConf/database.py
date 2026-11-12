@@ -49,6 +49,22 @@ class PostgresSampleRepository:
             if cur.fetchone() is None:
                 raise ValueError(f"Expresion desconocida: {label}")
 
+    def save_motion_sample(self, label, frames):
+        """Save a motion sample (no points of its own) and its frames together, or nothing."""
+        with self._conn.transaction(), self._conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO samples (epression_id, kind) "
+                "SELECT id, 'motion' FROM epression WHERE label = %s RETURNING id",
+                (label,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise ValueError(f"Expresion desconocida: {label}")
+            cur.executemany(
+                "INSERT INTO sample_frames (sample_id, frame_index, ms, hands) VALUES (%s, %s, %s, %s)",
+                [(row[0], frame["index"], frame["ms"], Jsonb(frame["hands"])) for frame in frames],
+            )
+
     def open_expression(self, label, kind):
         """Create the expression if it is new and return how many samples of `kind` it has."""
         with self._conn.transaction(), self._conn.cursor() as cur:
