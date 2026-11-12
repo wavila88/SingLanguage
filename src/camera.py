@@ -3,8 +3,8 @@ import time
 import cv2
 import numpy as np
 
-from capture_ui import (CaptureUI, MODE_BUTTONS, MODE_KEYS, expression_layout, menu_layout, name_layout,
-                        review_layout)
+from capture_ui import (CaptureUI, MODE_BUTTONS, MODE_KEYS, RecognizeUI, expression_layout, menu_layout,
+                        name_layout, review_layout)
 from hands import NO_HAND_TEXT
 from textdraw import draw_text, text_width
 from widgets import (BUTTON_TEXT_SIZE, PRIMARY_TEXT, TEXT, TEXT_SECONDARY, draw_card, draw_field, draw_primary_button,
@@ -146,7 +146,8 @@ def draw_countdown(frame, ui):
     """Big number counting down to the start of the recording, so the hands can get in place."""
     height, width = frame.shape[:2]
     scale = scale_for(frame)
-    draw_chip(frame, ui, expression_layout(width, height), scale)
+    if ui.expression:
+        draw_chip(frame, ui, expression_layout(width, height), scale)
     draw_text(frame, "Prepárate...", (width // 2, height // 2 - round(60 * scale)), TEXT[::-1],
               size=round(28 * scale), anchor="mm", bold=True)
     draw_text(frame, str(ui.countdown_left), (width // 2, height // 2 + round(10 * scale)), TEXT[::-1],
@@ -159,7 +160,8 @@ def draw_recording(frame, ui):
     height, width = frame.shape[:2]
     scale = scale_for(frame)
     layout = expression_layout(width, height)
-    draw_chip(frame, ui, layout, scale)
+    if ui.expression:
+        draw_chip(frame, ui, layout, scale)
     message = layout["message"]
     draw_rounded_rect(frame, message[:2], message[2:], STRIP_FILL, None, round(10 * scale))
     draw_text(frame, f"Grabando... {ui.elapsed:.1f} s", (message[0] + round(12 * scale), (message[1] + message[3]) // 2),
@@ -183,6 +185,27 @@ def draw_review(frame, ui):
     _label(frame, "No aprobar", discard, TEXT, scale)
     draw_primary_button(frame, approve[:2], approve[2:], scale)
     _label(frame, "Aprobar", approve, PRIMARY_TEXT, scale)
+    return frame
+
+
+def draw_recognize_screen(frame, ui):
+    """Recognition window: the last result, if any, and the Grabar button; the recording screens are shared."""
+    if ui.screen == "countdown":
+        return draw_countdown(frame, ui)
+    if ui.screen == "recording":
+        return draw_recording(frame, ui)
+    height, width = frame.shape[:2]
+    scale = scale_for(frame)
+    layout = expression_layout(width, height)
+    if ui.result:
+        message = layout["message"]
+        draw_rounded_rect(frame, message[:2], message[2:], STRIP_FILL, None, round(10 * scale))
+        draw_text(frame, ui.result, (message[0] + round(12 * scale), (message[1] + message[3]) // 2),
+                  TEXT[::-1], size=round(18 * scale), anchor="lm", bold=True)
+    draw_strip(frame)
+    button = layout["stop"]
+    draw_primary_button(frame, button[:2], button[2:], scale)
+    _label(frame, "Grabar", button, PRIMARY_TEXT, scale)
     return frame
 
 
@@ -219,10 +242,10 @@ def render_frame(frame, window_w, window_h):
     return canvas
 
 
-def run_camera(cap, detector=None, repository=None, predict=None, clock=time.monotonic):
+def run_camera(cap, detector=None, repository=None, predict=None, clock=time.monotonic, recognize=None):
     try:
         window_size = None
-        ui = CaptureUI(repository) if repository is not None else None
+        ui = CaptureUI(repository) if repository is not None else RecognizeUI(recognize) if recognize else None
         clicks = []
         while True:
             ret, frame = cap.read()
@@ -255,7 +278,7 @@ def run_camera(cap, detector=None, repository=None, predict=None, clock=time.mon
                 if text:
                     draw_text(frame, text, (10, 120))
             if ui is not None:
-                draw_capture_screen(frame, ui)
+                (draw_recognize_screen if isinstance(ui, RecognizeUI) else draw_capture_screen)(frame, ui)
             cv2.imshow(WINDOW_NAME, render_frame(frame, *get_window_size(window_size)))
             key = cv2.waitKey(1)
             if ui is not None:

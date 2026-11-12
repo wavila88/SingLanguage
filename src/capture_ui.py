@@ -220,3 +220,33 @@ class CaptureUI:
     def chip_text(self):
         noun = "muestra" if self.count == 1 else "muestras"
         return f"{self.expression.upper()} · {MODE_NAMES[self.mode]} · {self.count} {noun}"
+
+
+class RecognizeUI(CaptureUI):
+    """The recognition window: Grabar, the countdown, Detener, then the phrase the sequence is recognized as.
+
+    `recognize(frames)` gets the recorded frames in the format saved by the capture window and returns the text
+    to show. Nothing is saved, so only the hands of each frame are kept, not the video.
+    """
+
+    def __init__(self, recognize):
+        super().__init__(repository=None)
+        self._recognize = recognize
+        self.screen, self.mode, self.result = "live", "motion", ""
+
+    def click(self, x, y, width, height):
+        if not _inside(expression_layout(width, height)["stop"], x, y):  # one big button: Grabar, then Detener
+            return
+        if self.screen == "live":
+            self.countdown_start, self.result, self.screen = self.now, "", "countdown"
+        elif self.screen == "recording":
+            with_hands = [frame for frame in self.recording if frame["hands"]]
+            self.result = self._recognize([
+                {"index": index, "ms": frame["ms"],
+                 "hands": [hand_record(side, landmarks) for side, landmarks in frame["hands"]]}
+                for index, frame in enumerate(with_hands)
+            ])
+            self.recording, self.screen = [], "live"
+
+    def record(self, image):
+        super().record(None)

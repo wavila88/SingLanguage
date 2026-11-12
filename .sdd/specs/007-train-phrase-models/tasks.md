@@ -9,16 +9,16 @@ Manual check: With `hola` and `gracias` recorded (3 or more each), run `python s
 - [x] 1.1 Failing test — result: `ModuleNotFoundError: No module named 'phrases'` (tests/test_train_phrases.py) and 5 failed in tests/test_dataset.py (`AttributeError: module 'dataset' has no attribute 'motion_features'`, `... 'load_motion_samples'`); the developer then asked to remove these phase tests from the suite
 - [x] 1.2 Implementation — files: `src/train/train_phrases.py` (new: `train_motion_model`, leave-one-out evaluation, `format_result`, `main`), `src/recognize_message.py` (`describe_prediction`, 60% threshold), `src/dataset.py` (`hand_features`, `motion_features`, `normalize_phrase`), `src/dbConf/database.py` (`load_motion_samples`)
 - [x] 1.3 Passing test — result: 58 passed with the phase tests; after removing them at the developer's request the rest of the suite passes; `python src/train/train_phrases.py` on the real recordings → hola 6 de 6, adios 6 de 6, gracias 5 de 5
-- [ ] 1.4 Developer approval
+- [x] 1.4 Developer approval
 
 ## Phase 2 — Recognize the vowels and the motion phrases in `recognize_message.py` (covers HP-3, HP-4, HP-5, SP-5 for the window, SP-6)
 Test: `tests/test_recognize_message.py` asserts that with one hand shown the vowel text still appears as today, that clicking "Grabar" shows the 2-second countdown and then "Grabando..." with the elapsed time and "Detener", that "Detener" shows the predicted phrase and probability (e.g. "HOLA 87%") from the frames recorded and saves nothing, that a recording under 5 frames with a hand shows "No reconocido", that the existing tests (close only with the X, keys do nothing) still pass, and that without the motion model the vowels still work and "Grabar" is not shown.
 Manual check: Run `python src/recognize_message.py`, show a vowel and see its percentage; click "Grabar", wait the countdown, make the `hola` gesture, click "Detener" and read the phrase; then rename `data/motion_phrases_model.pkl` temporarily and confirm the vowels still work and the stderr message appears.
 
-- [ ] 2.1 Failing test — result: ________
-- [ ] 2.2 Implementation — files: ________
-- [ ] 2.3 Passing test — result: ________
-- [ ] 2.4 Developer approval
+- [x] 2.1 Failing test — result: `ImportError: cannot import name 'load_motion_model' from 'recognize_message'` (tests/test_recognize_message.py); the developer then asked to remove these phase tests from the suite
+- [x] 2.2 Implementation — files: `src/recognize_message.py` (`run_recognition` with the motion model and `clock`, `load_motion_model`, under-5-frames guard), `src/capture_ui.py` (`RecognizeUI`), `src/camera.py` (`recognize`, `draw_recognize_screen`, countdown and recording screens shared)
+- [x] 2.3 Passing test — result: 53 passed with the phase tests; after removing them at the developer's request the rest of the suite passes; real model on saved recordings → hola 95%, adios 97%, gracias 98%, 3 frames → No reconocido
+- [x] 2.4 Developer approval
 
 ## Phase 3 — Not enough data or database failures when training (covers SP-1, SP-2, HP-6)
 Test: `tests/test_train_phrases.py` asserts that with fewer than 2 phrases of 3 recordings no model file is written, the console says "se necesitan al menos 2 frases con 3 muestras; hay 1 (hola: 6)" and it exits with code 1, and that a missing `DATABASE_URL` or an unreachable database prints an error to stderr, exits with code 1 and leaves the model file as it was; `tests/test_train.py` keeps passing unchanged to show the vowel training is untouched.
