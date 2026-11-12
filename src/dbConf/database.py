@@ -76,6 +76,19 @@ class PostgresSampleRepository:
             )
             return cur.fetchone()[0]
 
+    def load_motion_samples(self):
+        """(label, frames) for every motion sample, each with its frames in order."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT e.label, s.id, f.frame_index, f.ms, f.hands FROM samples s "
+                "JOIN epression e ON e.id = s.epression_id JOIN sample_frames f ON f.sample_id = s.id "
+                "WHERE s.kind = 'motion' ORDER BY s.id, f.frame_index"
+            )
+            samples = {}
+            for label, sample_id, index, ms, hands in cur.fetchall():
+                samples.setdefault(sample_id, (label, []))[1].append({"index": index, "ms": ms, "hands": hands})
+            return list(samples.values())
+
     def load_samples(self):
         with self._conn.cursor() as cur:
             cur.execute(
