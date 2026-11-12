@@ -1,4 +1,4 @@
-# Tasks: Train a model for motion phrases and recognize vowels and motion in the live window
+# Tasks: Train a model for motion phrases and recognize vowels and motion in the live window, also continuously
 Spec: ./spec.md
 Test command: `pytest`
 
@@ -24,7 +24,16 @@ Manual check: Run `python src/recognize_message.py`, show a vowel and see its pe
 Test: `tests/test_train_phrases.py` asserts that with fewer than 2 phrases of 3 recordings no model file is written, the console says "se necesitan al menos 2 frases con 3 muestras; hay 1 (hola: 6)" and it exits with code 1, and that a missing `DATABASE_URL` or an unreachable database prints an error to stderr, exits with code 1 and leaves the model file as it was; `tests/test_train.py` keeps passing unchanged to show the vowel training is untouched.
 Manual check: Run the training with only one phrase recorded and read the message; run it with `DATABASE_URL` unset and confirm the error and exit; then run `python src/train/train.py` and confirm it still trains.
 
-- [ ] 3.1 Failing test — result: ________
-- [ ] 3.2 Implementation — files: ________
-- [ ] 3.3 Passing test — result: ________
+- [x] 3.1 Failing test — result: 3 failed (tests/test_train_phrases.py): `This solver needs samples of at least 2 classes in the data, but the data contains only one class: np.str_('hola')` instead of the "se necesitan al menos 2 frases" message; the 2 database tests already passed because `main` already handled them
+- [x] 3.2 Implementation — files: `src/train/train_phrases.py` (`MIN_PHRASES`, `MIN_SAMPLES_PER_PHRASE`, count per phrase and stop before writing the model)
+- [x] 3.3 Passing test — result: 52 passed (`pytest`), `tests/test_train.py` unchanged
 - [ ] 3.4 Developer approval
+
+## Phase 4 — Continuous recognition in `recognize_message_v2.py`, next to the first window in `src/recognize/` (covers HP-7 to HP-12, SP-7 to SP-11)
+Test: `tests/test_recognize_message_v2.py` asserts, with fake models and synthetic hands (no camera), that a movement followed by 0.4 s still adds the motion word, that hands leaving mid-movement also close it, that one hand still for 0.7 s adds the letter once and not again until it moves, that the stillness after a word adds no letter while the stillness after a movement that gave nothing does, that `nada`, low probability, under 5 frames and two still hands add nothing, that jitter under 1 hand size per second is not movement, that letters join with `, ` and words with a space, that the message clears after 4 s and the placeholder shows, and that the window runs through `run_camera` with the bottom strip; `tests/test_recognize_message.py` keeps passing after the move.
+Manual check: Run `python src/recognize/recognize_message_v2.py`, sign `hola`, pause, hold an A, move, hold an E, and read `HOLA A, E` on the bottom strip; wait 4 s and see it clear; then run `python src/recognize/recognize_message.py` and confirm Grabar and Detener still work.
+
+- [ ] 4.1 Failing test — result: ________
+- [ ] 4.2 Implementation — files: ________
+- [ ] 4.3 Passing test — result: ________
+- [ ] 4.4 Developer approval

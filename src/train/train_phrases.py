@@ -33,6 +33,8 @@ from dataset import motion_features, normalize_phrase
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 MOTION_MODEL_PATH = DATA_DIR / "motion_phrases_model.pkl"  # dónde se guarda el modelo entrenado
 MIN_MOTION_FRAMES = 5  # una grabación con menos cuadros con mano es demasiado corta para aprender de ella
+MIN_PHRASES = 2  # con una sola frase no hay nada que distinguir
+MIN_SAMPLES_PER_PHRASE = 3  # una frase cuenta solo si tiene al menos estas grabaciones
 
 
 def _new_model():
@@ -107,6 +109,17 @@ def train_motion_model(repo, model_path):
     usable = [(normalize_phrase(label), frames) for label, frames in samples if len(frames) >= MIN_MOTION_FRAMES]
     if not usable:
         raise ValueError("no hay grabaciones de movimiento")
+
+    #    Para aprender a distinguir hacen falta al menos 2 frases con 3 grabaciones cada una. Si no las
+    #    hay, se para aquí, antes de escribir el archivo, y se dice cuántas tiene cada frase.
+    counts = {}
+    for label, _ in usable:
+        counts[label] = counts.get(label, 0) + 1
+    enough = [label for label, count in counts.items() if count >= MIN_SAMPLES_PER_PHRASE]
+    if len(enough) < MIN_PHRASES:
+        detail = ", ".join(f"{label}: {count}" for label, count in counts.items())
+        raise ValueError(f"Movimiento: se necesitan al menos {MIN_PHRASES} frases con {MIN_SAMPLES_PER_PHRASE} "
+                         f"muestras; hay {len(enough)} ({detail})")
 
     # 3) Convertir las grabaciones en el formato que entiende el modelo. Un modelo no sabe de manos ni
     #    de cámaras: solo recibe listas de números. Quedan dos listas paralelas:
