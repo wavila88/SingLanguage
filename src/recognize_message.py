@@ -5,7 +5,7 @@ from pathlib import Path
 
 import cv2
 
-from camera import run_camera
+from camera import open_camera, run_camera
 from dataset import motion_features, normalize_landmarks
 from hands import HandDetector
 
@@ -61,7 +61,7 @@ def load_motion_model(path=MOTION_MODEL_PATH):
 def main():
     with MODEL_PATH.open("rb") as file:
         model = pickle.load(file)
-    cap = cv2.VideoCapture(0)
+    cap = open_camera()
     run_recognition(cap, HandDetector(max_num_hands=2), model, load_motion_model())
 
 

@@ -17,6 +17,9 @@ class FakeCapture:
             return False, None
         return True, self._frames.pop(0)
 
+    def set(self, prop, value):
+        return False
+
     def release(self):
         self.released = True
 

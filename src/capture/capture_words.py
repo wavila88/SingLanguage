@@ -7,13 +7,13 @@ SRC_DIR = Path(__file__).resolve().parents[1]
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from camera import run_camera
+from camera import open_camera, run_camera
 from dbConf.database import PostgresSampleRepository, connect_from_env, create_sample_tables
 from hands import HandDetector
 
 
 def main():
-    cap = cv2.VideoCapture(0)
+    cap = open_camera()
     try:
         if not cap.isOpened():
             print("Error: no se pudo abrir la cámara. Revisa que esté conectada y que no la use otra app.", file=sys.stderr)

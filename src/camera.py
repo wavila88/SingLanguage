@@ -20,6 +20,15 @@ WINDOW_SCALE_WIDTH = 0.9
 WINDOW_SCALE_HEIGHT = 0.85
 
 
+def open_camera(index=0):
+    """Open the webcam at its widest view: zoom at minimum (ignored when the camera has no zoom)."""
+    cap = cv2.VideoCapture(index)
+    if cap.isOpened():
+        cap.set(cv2.CAP_PROP_ZOOM, 0)
+        cap.set(cv2.CAP_PROP_ZOOM, 100)
+    return cap
+
+
 def get_screen_size():
     try:
         import ctypes
