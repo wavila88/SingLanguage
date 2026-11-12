@@ -1,3 +1,5 @@
+"""DEPRECATED (spec 007): trains the one-hand static (vowel) model from `samples.points`, a column that no longer exists.
+Kept in the repo until it is decided whether static signs return or everything goes through train_phrases.py."""
 import os
 import pickle
 import sys

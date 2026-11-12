@@ -28,6 +28,7 @@ class PostgresSampleRepository:
         self._conn = conn
 
     def save_sample(self, label, points):
+        """DEPRECATED: the `samples.points` column was removed (spec 007), so this fails until static data returns."""
         flat = [value for point in points for value in point]
         with self._conn.transaction(), self._conn.cursor() as cur:
             cur.execute(
@@ -39,7 +40,7 @@ class PostgresSampleRepository:
                 raise ValueError(f"Vocal desconocida: {label}")
 
     def save_static_sample(self, label, hands):
-        """Save one static sample: `{"hands": [...]}` as points, which training skips (it reads only arrays)."""
+        """DEPRECATED: the `samples.points` and `kind` columns were removed (spec 007); kept for reference."""
         with self._conn.transaction(), self._conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO samples (epression_id, points, kind) "
@@ -53,8 +54,8 @@ class PostgresSampleRepository:
         """Save a motion sample (no points of its own) and its frames together, or nothing."""
         with self._conn.transaction(), self._conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO samples (epression_id, kind) "
-                "SELECT id, 'motion' FROM epression WHERE label = %s RETURNING id",
+                "INSERT INTO samples (epression_id) "
+                "SELECT id FROM epression WHERE label = %s RETURNING id",
                 (label,),
             )
             row = cur.fetchone()
@@ -66,13 +67,13 @@ class PostgresSampleRepository:
             )
 
     def open_expression(self, label, kind):
-        """Create the expression if it is new and return how many samples of `kind` it has."""
+        """Create the expression if it is new and return how many samples it has (all are recordings now; `kind` is kept for the callers)."""
         with self._conn.transaction(), self._conn.cursor() as cur:
             cur.execute("INSERT INTO epression (label) VALUES (%s) ON CONFLICT (label) DO NOTHING", (label,))
             cur.execute(
                 "SELECT COUNT(*) FROM samples s JOIN epression e ON e.id = s.epression_id "
-                "WHERE e.label = %s AND s.kind = %s",
-                (label, kind),
+                "WHERE e.label = %s",
+                (label,),
             )
             return cur.fetchone()[0]
 
@@ -82,7 +83,7 @@ class PostgresSampleRepository:
             cur.execute(
                 "SELECT e.label, s.id, f.frame_index, f.ms, f.hands FROM samples s "
                 "JOIN epression e ON e.id = s.epression_id JOIN sample_frames f ON f.sample_id = s.id "
-                "WHERE s.kind = 'motion' ORDER BY s.id, f.frame_index"
+                "ORDER BY s.id, f.frame_index"
             )
             samples = {}
             for label, sample_id, index, ms, hands in cur.fetchall():
@@ -90,7 +91,9 @@ class PostgresSampleRepository:
             return list(samples.values())
 
     def load_samples(self):
-        """(label, 63 points) for every one-hand static sample: the old vowel rows and the new rows with one hand.
+        """DEPRECATED: the `samples.points` and `kind` columns were removed (spec 007); this fails until static data returns.
+
+        (label, 63 points) for every one-hand static sample: the old vowel rows and the new rows with one hand.
 
         Two-hand static samples are left out because the vowel model is a one-hand model.
         """

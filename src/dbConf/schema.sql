@@ -8,13 +8,12 @@ INSERT INTO epression (label) VALUES ('a'), ('e'), ('i'), ('o'), ('u') ON CONFLI
 CREATE TABLE IF NOT EXISTS samples (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     epression_id BIGINT NOT NULL REFERENCES epression (id) ON DELETE CASCADE,
-    points JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE samples ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'static' CHECK (kind IN ('static', 'motion'));
-
-ALTER TABLE samples ALTER COLUMN points DROP NOT NULL;
+-- Every sample is a recording of frames now (sample_frames). The static `points` and `kind` columns were removed
+-- (spec 007): to migrate an older database run `DELETE FROM samples` for its static rows, then
+-- `ALTER TABLE samples DROP COLUMN IF EXISTS points, DROP COLUMN IF EXISTS kind`.
 
 CREATE TABLE IF NOT EXISTS sample_frames (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

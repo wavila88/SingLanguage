@@ -22,6 +22,7 @@ def conn():
     connection.close()
 
 
+@pytest.mark.skip(reason="DEPRECATED (spec 007): the samples.points and kind columns were removed")
 def test_second_save_appends_sample_to_its_epression_and_keeps_first(conn):
     with conn.cursor() as cur:
         cur.execute("SELECT COALESCE(MAX(id), 0) FROM samples")
@@ -49,6 +50,7 @@ def test_second_save_appends_sample_to_its_epression_and_keeps_first(conn):
             cur.execute("DELETE FROM samples WHERE id > %s", (last_id,))
 
 
+@pytest.mark.skip(reason="DEPRECATED (spec 007): the samples.points and kind columns were removed")
 def test_opening_an_expression_twice_creates_one_row_and_counts_per_kind(conn):
     label = f"prueba_{uuid.uuid4().hex[:8]}"
     repo = PostgresSampleRepository(conn)
@@ -71,6 +73,7 @@ def test_opening_an_expression_twice_creates_one_row_and_counts_per_kind(conn):
             cur.execute("DELETE FROM epression WHERE label = %s", (label,))
 
 
+@pytest.mark.skip(reason="DEPRECATED (spec 007): the samples.points and kind columns were removed")
 def test_samples_saved_before_the_kind_column_count_as_static(conn):
     repo = PostgresSampleRepository(conn)
     with conn.cursor() as cur:
@@ -87,6 +90,7 @@ def test_samples_saved_before_the_kind_column_count_as_static(conn):
             cur.execute("DELETE FROM samples WHERE id > %s", (last_id,))
 
 
+@pytest.mark.skip(reason="DEPRECATED (spec 007): the samples.points and kind columns were removed")
 def test_static_sample_with_hands_is_saved_and_training_data_ignores_it(conn):
     label = f"prueba_{uuid.uuid4().hex[:8]}"
     repo = PostgresSampleRepository(conn)
@@ -109,6 +113,7 @@ def test_static_sample_with_hands_is_saved_and_training_data_ignores_it(conn):
             cur.execute("DELETE FROM epression WHERE label = %s", (label,))
 
 
+@pytest.mark.skip(reason="DEPRECATED (spec 007): the samples.points and kind columns were removed")
 def test_saving_a_static_sample_for_an_unknown_expression_fails(conn):
     repo = PostgresSampleRepository(conn)
 
