@@ -251,7 +251,9 @@ def render_frame(frame, window_w, window_h):
     return canvas
 
 
-def run_camera(cap, detector=None, repository=None, predict=None, clock=time.monotonic, recognize=None):
+def run_camera(cap, detector=None, repository=None, predict=None, clock=time.monotonic, recognize=None,
+               overlay=None):
+    """`overlay(frame, detector, now)`, when given, draws on every frame after the hands and texts."""
     try:
         window_size = None
         ui = CaptureUI(repository) if repository is not None else RecognizeUI(recognize) if recognize else None
@@ -289,6 +291,8 @@ def run_camera(cap, detector=None, repository=None, predict=None, clock=time.mon
                     draw_text(frame, text, (10, 120))
             if ui is not None:
                 (draw_recognize_screen if isinstance(ui, RecognizeUI) else draw_capture_screen)(frame, ui)
+            if overlay is not None:
+                overlay(frame, detector, clock())
             cv2.imshow(WINDOW_NAME, render_frame(frame, *get_window_size(window_size)))
             key = cv2.waitKey(1)
             if ui is not None:

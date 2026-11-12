@@ -3,14 +3,16 @@ import sys
 import time
 from pathlib import Path
 
-import cv2
+SRC_DIR = Path(__file__).resolve().parents[1]
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from camera import open_camera, run_camera
 from dataset import motion_features, normalize_landmarks
 from hands import HandDetector
 
-MODEL_PATH = Path(__file__).resolve().parents[1] / "data" / "language_sing_model.pkl"
-MOTION_MODEL_PATH = Path(__file__).resolve().parents[1] / "data" / "motion_phrases_model.pkl"
+MODEL_PATH = Path(__file__).resolve().parents[2] / "data" / "language_sing_model.pkl"
+MOTION_MODEL_PATH = Path(__file__).resolve().parents[2] / "data" / "motion_phrases_model.pkl"
 MIN_FRAMES = 5
 MIN_PROBABILITY = 0.4  # lowered from 0.6: with few recordings the right phrase wins with 40-60%
 NOT_RECOGNIZED = "No reconocido"
