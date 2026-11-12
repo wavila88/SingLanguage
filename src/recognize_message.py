@@ -12,8 +12,9 @@ from hands import HandDetector
 MODEL_PATH = Path(__file__).resolve().parents[1] / "data" / "language_sing_model.pkl"
 MOTION_MODEL_PATH = Path(__file__).resolve().parents[1] / "data" / "motion_phrases_model.pkl"
 MIN_FRAMES = 5
-MIN_PROBABILITY = 0.6
+MIN_PROBABILITY = 0.4  # lowered from 0.6: with few recordings the right phrase wins with 40-60%
 NOT_RECOGNIZED = "No reconocido"
+NOTHING = "nada"  # samples recorded as "no sign"; when it wins, nothing is shown
 
 
 def describe_hand(model, hands):
@@ -22,6 +23,8 @@ def describe_hand(model, hands):
     features = [value for point in normalize_landmarks(hands[0]) for value in point]
     probabilities = model.predict_proba([features])[0]
     best = max(range(len(probabilities)), key=lambda i: probabilities[i])
+    if model.classes_[best] == NOTHING:
+        return None
     return f"{model.classes_[best].upper()} {round(probabilities[best] * 100)}%"
 
 
@@ -33,6 +36,8 @@ def describe_prediction(model, frames):
     best = max(range(len(probabilities)), key=lambda i: probabilities[i])
     if probabilities[best] < MIN_PROBABILITY:
         return NOT_RECOGNIZED
+    if model.classes_[best] == NOTHING:
+        return ""
     return f"{model.classes_[best].upper()} {round(probabilities[best] * 100)}%"
 
 

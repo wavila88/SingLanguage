@@ -273,7 +273,8 @@ def run_camera(cap, detector=None, repository=None, predict=None, clock=time.mon
                     ui.frozen = frame.copy()
                 if ui.screen == "review":
                     frame = ui.review_image().copy()
-            if predict is not None and detector is not None:
+            recording_motion = isinstance(ui, RecognizeUI) and ui.screen in ("countdown", "recording")
+            if predict is not None and detector is not None and not recording_motion:  # vowels would distract from the gesture
                 text = predict(detector)
                 if text:
                     draw_text(frame, text, (10, 120))

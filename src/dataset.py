@@ -41,8 +41,8 @@ def _hand_slot(hand):
     return list(hand["points"]) + list(hand["wrist"]) + [1.0]  # the last value says the hand is there
 
 
-def hand_features(hands):
-    """Fixed-length features for one or two stored hands: left slot, then right slot, missing hand as zeros."""
+def _slots(hands):
+    """The hand in each side's slot (None when missing); two hands with the same label still fit."""
     slots = {side: None for side in HAND_SIDES}
     extra = []
     for hand in hands:
@@ -50,28 +50,43 @@ def hand_features(hands):
             slots[hand["side"]] = hand
         else:
             extra.append(hand)
-    for hand in extra:  # two hands labeled with the same side still fit, in the free slot
+    for hand in extra:
         for side in HAND_SIDES:
             if slots[side] is None:
                 slots[side] = hand
                 break
+    return slots
+
+
+def hand_features(hands):
+    """Fixed-length features for one or two stored hands: left slot, then right slot, missing hand as zeros."""
+    slots = _slots(hands)
     return [value for side in HAND_SIDES for value in _hand_slot(slots[side])]
+
+
+def _wrist_features(hands):
+    """Where each wrist is in the image (x, y) and whether the hand is there, left slot then right slot."""
+    slots = _slots(hands)
+    return [value for side in HAND_SIDES
+            for value in (list(slots[side]["wrist"][:2]) + [1.0] if slots[side] else [0.0, 0.0, 0.0])]
 
 
 def motion_features(frames, steps=MOTION_STEPS):
     """Fixed-length features for a recorded sequence of frames, whatever its duration or frame count.
 
     The sequence is resampled to `steps` frames over its own duration, counted from its first saved frame
-    (frames with no hand were left out when saving), and its duration in seconds is added at the end.
+    (frames with no hand were left out when saving). The features are the path of each wrist over those frames
+    (what defines a motion), the duration in seconds, and the average hand shape over the sequence.
     """
     first = frames[0]["ms"]
     duration = frames[-1]["ms"] - first
-    features = []
+    path, shape = [], [0.0] * (len(HAND_SIDES) * (HAND_VALUES + 1))
     for step in range(steps):
         target = duration * step / (steps - 1)
         nearest = min(frames, key=lambda frame: abs(frame["ms"] - first - target))
-        features += hand_features(nearest["hands"])
-    return features + [duration / 1000]
+        path += _wrist_features(nearest["hands"])
+        shape = [total + value for total, value in zip(shape, hand_features(nearest["hands"]))]
+    return path + [duration / 1000] + [total / steps for total in shape]
 
 
 def normalize_landmarks(landmarks):

@@ -90,10 +90,16 @@ class PostgresSampleRepository:
             return list(samples.values())
 
     def load_samples(self):
+        """(label, 63 points) for every one-hand static sample: the old vowel rows and the new rows with one hand.
+
+        Two-hand static samples are left out because the vowel model is a one-hand model.
+        """
         with self._conn.cursor() as cur:
             cur.execute(
-                "SELECT l.label, s.points FROM samples s "
+                "SELECT lower(trim(l.label)), CASE WHEN jsonb_typeof(s.points) = 'array' THEN s.points "
+                "ELSE s.points -> 'hands' -> 0 -> 'points' END FROM samples s "
                 "JOIN epression l ON l.id = s.epression_id "
-                "WHERE s.kind = 'static' AND jsonb_typeof(s.points) = 'array' ORDER BY s.id"
+                "WHERE s.kind = 'static' AND (jsonb_typeof(s.points) = 'array' "
+                "OR jsonb_array_length(s.points -> 'hands') = 1) ORDER BY s.id"
             )
             return [(label, points) for label, points in cur.fetchall()]
