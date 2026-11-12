@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -99,3 +101,51 @@ def test_detector_init_failure_prints_error_exits_1_and_releases_camera(monkeypa
     assert exc.value.code == 1
     assert cap.released is True
     assert "error" in capsys.readouterr().err.lower()
+
+
+class _RecordingLandmarker:
+    def __init__(self, result):
+        self.result = result
+        self.seen = []
+
+    def detect(self, image):
+        self.seen.append(image.numpy_view().copy())
+        return self.result
+
+
+def _landmark():
+    return SimpleNamespace(x=0.5, y=0.5, z=0.0)
+
+
+def test_handedness_is_reported_per_hand_as_seen_in_the_mirrored_frame():
+    result = SimpleNamespace(
+        hand_landmarks=[[_landmark()] * 21, [_landmark()] * 21],
+        handedness=[[SimpleNamespace(category_name="Left")], [SimpleNamespace(category_name="Right")]],
+    )
+    detector = hands.HandDetector.__new__(hands.HandDetector)
+    detector._landmarker = _RecordingLandmarker(result)
+    mirrored = np.zeros((4, 6, 3), dtype=np.uint8)
+    mirrored[:, :3] = (10, 20, 30)
+
+    assert detector.process(mirrored) == 2
+
+    assert detector.handedness() == ["left", "right"]
+    assert (detector._landmarker.seen[0] == mirrored[:, :, ::-1]).all()  # not flipped again, only BGR to RGB
+
+
+def test_the_camera_gives_the_detector_the_mirrored_frame(monkeypatch):
+    frame = np.zeros((4, 6, 3), dtype=np.uint8)
+    frame[:, :3] = 255
+    seen = []
+
+    class RecordingDetector(FakeDetector):
+        def process(self, image):
+            seen.append(image.copy())
+            return 1
+
+    monkeypatch.setattr(camera.cv2, "imshow", lambda name, img: None)
+    monkeypatch.setattr(camera.cv2, "waitKey", lambda delay: -1)
+
+    camera.run_camera(FakeCapture([frame]), RecordingDetector(1))
+
+    assert (seen[0] == frame[:, ::-1]).all()

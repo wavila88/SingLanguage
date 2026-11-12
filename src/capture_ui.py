@@ -3,12 +3,16 @@
 Pure logic, no drawing: `camera.py` draws what this module describes. Rectangles are
 (x0, y0, x1, y1) in video-frame pixels, scaled from the 640 x 480 reference of the design.
 """
+from dataset import hand_record
 from widgets import BUTTON_HEIGHT, BUTTON_MARGIN, REFERENCE_WIDTH
 
 MODE_BUTTONS = ("Expresión estática", "Expresión en movimiento")
 MODE_KEYS = ("static", "motion")
 MODE_NAMES = {"static": "estática", "motion": "en movimiento"}
 MODE_TITLES = dict(zip(MODE_KEYS, MODE_BUTTONS))
+
+NO_HAND_MESSAGE = "No se capturó: no se detectó ninguna mano"
+DISCARDED_MESSAGE = "Muestra descartada"
 
 KEY_BACKSPACE = 8
 KEY_ENTER = (10, 13)
@@ -59,6 +63,19 @@ def expression_layout(width, height):
     return {
         "chip": (margin, margin, width - margin, margin + chip_height),
         "back": (margin, top, margin + back_width, top + button_height),
+        "capture": (2 * margin + back_width, top, width - margin, top + button_height),
+        "message": (margin, 2 * margin + chip_height, width - margin, 2 * margin + 2 * chip_height),
+    }
+
+
+def review_layout(width, height):
+    """Aprobar and No aprobar side by side on the bottom strip, like the menu buttons."""
+    margin, button_height = _scaled(width, BUTTON_MARGIN, BUTTON_HEIGHT)
+    button_width = (width - 3 * margin) // 2
+    top = height - margin - button_height
+    return {
+        "discard": (margin, top, margin + button_width, top + button_height),
+        "approve": (2 * margin + button_width, top, 2 * margin + 2 * button_width, top + button_height),
     }
 
 
@@ -76,6 +93,10 @@ class CaptureUI:
         self.name = ""
         self.expression = None
         self.count = 0
+        self.live_hands = []  # (side, landmarks) of the frame being shown; the camera loop refreshes it
+        self.captured = []
+        self.frozen = None  # the captured video frame, set by the camera loop while reviewing
+        self.message = ""
 
     def click(self, x, y, width, height):
         if self.screen == "menu":
@@ -89,8 +110,20 @@ class CaptureUI:
             elif _inside(layout["accept"], x, y):
                 self._accept()
         elif self.screen == "expression":
-            if _inside(expression_layout(width, height)["back"], x, y):
-                self.screen = "menu"
+            layout = expression_layout(width, height)
+            if _inside(layout["back"], x, y):
+                self.screen, self.message = "menu", ""
+            elif self.mode == "static" and _inside(layout["capture"], x, y):
+                if self.live_hands:
+                    self.captured, self.message, self.screen = list(self.live_hands), "", "review"
+                else:
+                    self.message = NO_HAND_MESSAGE
+        elif self.screen == "review":
+            layout = review_layout(width, height)
+            if _inside(layout["approve"], x, y):
+                self._approve()
+            elif _inside(layout["discard"], x, y):
+                self._discard()
 
     def key(self, code):
         if self.screen != "name" or code < 0:
@@ -101,6 +134,18 @@ class CaptureUI:
             self._accept()
         elif code == SPACE or chr(code).isalnum():
             self.name += chr(code)
+
+    def _discard(self):
+        self.message = DISCARDED_MESSAGE
+        self.captured, self.frozen, self.screen = [], None, "expression"
+
+    def _approve(self):
+        hands = [hand_record(side, landmarks) for side, landmarks in self.captured]
+        self._repository.save_static_sample(self.expression, hands)
+        self.count += 1
+        noun = "mano" if len(hands) == 1 else "manos"
+        self.message = f"Guardada muestra: {self.expression.upper()} ({len(hands)} {noun})"
+        self.captured, self.frozen, self.screen = [], None, "expression"
 
     def _accept(self):
         if not self.name.strip():

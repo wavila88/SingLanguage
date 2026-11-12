@@ -12,6 +12,17 @@ class SampleRepository(Protocol):
 
     def open_expression(self, label, kind): ...
 
+    def save_static_sample(self, label, hands): ...
+
+
+def hand_record(side, landmarks):
+    """What is stored for one visible hand: its side, normalized points and raw wrist position."""
+    return {
+        "side": side,
+        "points": [value for point in normalize_landmarks(landmarks) for value in point],
+        "wrist": list(landmarks[WRIST]),
+    }
+
 
 def normalize_landmarks(landmarks):
     """Coordinates relative to the wrist, divided by the wrist-to-middle-knuckle distance."""

@@ -38,6 +38,17 @@ class PostgresSampleRepository:
             if cur.fetchone() is None:
                 raise ValueError(f"Vocal desconocida: {label}")
 
+    def save_static_sample(self, label, hands):
+        """Save one static sample: `{"hands": [...]}` as points, which training skips (it reads only arrays)."""
+        with self._conn.transaction(), self._conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO samples (epression_id, points, kind) "
+                "SELECT id, %s, 'static' FROM epression WHERE label = %s RETURNING id",
+                (Jsonb({"hands": hands}), label),
+            )
+            if cur.fetchone() is None:
+                raise ValueError(f"Expresion desconocida: {label}")
+
     def open_expression(self, label, kind):
         """Create the expression if it is new and return how many samples of `kind` it has."""
         with self._conn.transaction(), self._conn.cursor() as cur:
@@ -53,6 +64,7 @@ class PostgresSampleRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 "SELECT l.label, s.points FROM samples s "
-                "JOIN epression l ON l.id = s.epression_id ORDER BY s.id"
+                "JOIN epression l ON l.id = s.epression_id "
+                "WHERE s.kind = 'static' AND jsonb_typeof(s.points) = 'array' ORDER BY s.id"
             )
             return [(label, points) for label, points in cur.fetchall()]

@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 import capture_ui
+import dataset
 from src import camera
 from capture import capture_words as main
 
@@ -31,6 +32,9 @@ class FakeDetector:
     def landmarks(self):
         return self._hands
 
+    def handedness(self):
+        return ["left", "right"][:len(self._hands)]
+
     def draw(self, frame):
         return frame
 
@@ -41,19 +45,23 @@ class FakeDetector:
 class FakeRepository:
     def __init__(self, counts=None):
         self.saved = []
+        self.static_saved = []
         self.opened = []
         self._counts = counts or {}
 
     def save_sample(self, label, points):
         self.saved.append((label, points))
 
+    def save_static_sample(self, label, hands):
+        self.static_saved.append((label, hands))
+
     def open_expression(self, label, kind):
         self.opened.append((label, kind))
         return self._counts.get((label, kind), 0)
 
 
-def _hand():
-    return [(float(i), float(i) * 0.5, 0.1 * i) for i in range(21)]
+def _hand(dx=0.0):
+    return [(dx + float(i), float(i) * 0.5, 0.1 * i) for i in range(21)]
 
 
 def _frames(count):
@@ -76,7 +84,7 @@ def _drive(monkeypatch, cap, detector=None, repository=None, keys=()):
     return shown, texts
 
 
-def _play(monkeypatch, steps, repository=None, window=(640, 480)):
+def _play(monkeypatch, steps, repository=None, window=(640, 480), detector=None, images=None):
     """Run the capture window on 640x480 frames, performing one scripted step per frame.
 
     A step is ("click", x, y) in video coordinates (translated to where the click lands in a
@@ -107,6 +115,8 @@ def _play(monkeypatch, steps, repository=None, window=(640, 480)):
     def imshow(name, img):
         per_frame.append(list(current))
         current.clear()
+        if images is not None:
+            images.append(img.copy())
 
     monkeypatch.setattr(camera, "setup_window", lambda aspect_ratio: window)
     monkeypatch.setattr(camera, "window_closed", lambda: False)
@@ -117,8 +127,8 @@ def _play(monkeypatch, steps, repository=None, window=(640, 480)):
     monkeypatch.setattr(camera.cv2, "setMouseCallback",
                         lambda name, callback, *args: handler.__setitem__("callback", callback))
     monkeypatch.setattr(camera, "draw_text", lambda img, text, *args, **kwargs: current.append(text))
-    cap = FakeCapture([np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(len(queue) + 2)])
-    camera.run_camera(cap, FakeDetector(), repository)
+    cap = FakeCapture([np.full((480, 640, 3), 10 * (index + 1), dtype=np.uint8) for index in range(len(queue) + 2)])
+    camera.run_camera(cap, detector or FakeDetector(), repository)
     return per_frame
 
 
@@ -341,3 +351,83 @@ def test_volver_in_the_name_input_goes_back_to_the_menu(monkeypatch):
     frames = _play(monkeypatch, steps, FakeRepository())
 
     assert "Expresión en movimiento" in frames[-1]
+
+
+def _static_hola(*extra):
+    """Steps that open `hola` in static mode, then `extra`."""
+    return _open("static", "hola") + list(extra)
+
+
+def _capture_button():
+    return _click(capture_ui.expression_layout(640, 480)["capture"])
+
+
+def _approve_button():
+    return _click(capture_ui.review_layout(640, 480)["approve"])
+
+
+def test_capturar_freezes_the_frame_and_shows_only_approve_and_discard(monkeypatch):
+    images = []
+    detector = FakeDetector([_hand(), _hand(5.0)])
+
+    frames = _play(monkeypatch, _static_hola(_capture_button(), ("key", -1), ("key", -1)), FakeRepository(),
+                   detector=detector, images=images)
+
+    assert "Aprobar" in frames[-1] and "No aprobar" in frames[-1]
+    assert "Capturar" not in frames[-1] and "Volver" not in frames[-1]
+    assert images[-1][200, 320, 0] == images[-2][200, 320, 0]  # frozen: later frames repeat the same image
+
+
+def test_the_live_video_keeps_moving_before_capturing(monkeypatch):
+    images = []
+
+    _play(monkeypatch, _static_hola(("key", -1), ("key", -1)), FakeRepository(), detector=FakeDetector([_hand()]),
+          images=images)
+
+    assert images[-1][200, 320, 0] != images[-2][200, 320, 0]
+
+
+def test_aprobar_saves_one_static_sample_with_each_hand_labeled_left_or_right(monkeypatch):
+    repository = FakeRepository({("hola", "static"): 12})
+    detector = FakeDetector([_hand(), _hand(5.0)])
+
+    frames = _play(monkeypatch, _static_hola(_capture_button(), _approve_button()), repository, detector=detector)
+
+    assert len(repository.static_saved) == 1
+    label, hands = repository.static_saved[0]
+    assert label == "hola"
+    assert [hand["side"] for hand in hands] == ["left", "right"]
+    expected = [value for point in dataset.normalize_landmarks(_hand(5.0)) for value in point]
+    assert hands[1]["points"] == expected
+    assert len(hands[0]["points"]) == 63
+    assert hands[1]["wrist"] == [5.0, 0.0, 0.0]
+    assert "Guardada muestra: HOLA (2 manos)" in frames[-1]
+    assert "HOLA · estática · 13 muestras" in frames[-1]
+
+
+def test_aprobar_goes_back_to_live_video_with_capturar_enabled_again(monkeypatch):
+    repository = FakeRepository()
+
+    frames = _play(monkeypatch, _static_hola(_capture_button(), _approve_button()), repository,
+                   detector=FakeDetector([_hand()]))
+
+    assert "Guardada muestra: HOLA (1 mano)" in frames[-1]
+    assert "Capturar" in frames[-1] and "Volver" in frames[-1]
+    assert "Aprobar" not in frames[-1]
+
+
+def test_capturar_with_no_hand_does_not_enter_the_review(monkeypatch):
+    repository = FakeRepository()
+
+    frames = _play(monkeypatch, _static_hola(_capture_button(), _approve_button()), repository,
+                   detector=FakeDetector())
+
+    assert "Aprobar" not in frames[-1]
+    assert repository.static_saved == []
+
+
+def test_motion_expressions_have_no_capturar_button(monkeypatch):
+    frames = _play(monkeypatch, _open("motion", "hola"), FakeRepository(), detector=FakeDetector([_hand()]))
+
+    assert "Capturar" not in frames[-1]
+    assert "Volver" in frames[-1]

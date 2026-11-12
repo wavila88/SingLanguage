@@ -84,3 +84,32 @@ def test_samples_saved_before_the_kind_column_count_as_static(conn):
     finally:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM samples WHERE id > %s", (last_id,))
+
+
+def test_static_sample_with_hands_is_saved_and_training_data_ignores_it(conn):
+    label = f"prueba_{uuid.uuid4().hex[:8]}"
+    repo = PostgresSampleRepository(conn)
+    hands = [{"side": "left", "points": [0.5] * 63, "wrist": [0.1, 0.2, 0.3]},
+             {"side": "right", "points": [0.25] * 63, "wrist": [0.4, 0.5, 0.6]}]
+    try:
+        repo.open_expression(label, "static")
+        repo.save_static_sample(label, hands)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT s.kind, s.points FROM samples s JOIN epression e ON e.id = s.epression_id "
+                "WHERE e.label = %s", (label,))
+            rows = cur.fetchall()
+        assert rows == [("static", {"hands": hands})]
+        assert repo.open_expression(label, "static") == 1
+        assert label not in [stored_label for stored_label, _ in repo.load_samples()]
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM epression WHERE label = %s", (label,))
+
+
+def test_saving_a_static_sample_for_an_unknown_expression_fails(conn):
+    repo = PostgresSampleRepository(conn)
+
+    with pytest.raises(ValueError):
+        repo.save_static_sample(f"inexistente_{uuid.uuid4().hex[:8]}", [])

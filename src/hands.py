@@ -35,6 +35,7 @@ class HandDetector:
         )
         self._landmarker = vision.HandLandmarker.create_from_options(options)
         self._hands_landmarks = []
+        self._handedness = []
 
     def process(self, frame):
         """Detect hands in the frame and return how many were found."""
@@ -42,6 +43,7 @@ class HandDetector:
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb.astype(np.uint8))
         result = self._landmarker.detect(image)
         self._hands_landmarks = result.hand_landmarks
+        self._handedness = [hand[0].category_name.lower() for hand in result.handedness]
         return self.hands_count()
 
     def hands_count(self):
@@ -50,6 +52,14 @@ class HandDetector:
     def landmarks(self):
         """21 (x, y, z) points for each hand in the last processed frame."""
         return [[(lm.x, lm.y, lm.z) for lm in hand] for hand in self._hands_landmarks]
+
+    def handedness(self):
+        """"left" or "right" for each hand in the last processed frame, in the same order as `landmarks()`.
+
+        MediaPipe assumes a mirrored (selfie) image, which is what the camera loop feeds it, so the label
+        is the side the hand appears on in the window.
+        """
+        return list(self._handedness)
 
     def draw(self, frame):
         """Draw 21 landmarks and finger connections for the last processed frame."""

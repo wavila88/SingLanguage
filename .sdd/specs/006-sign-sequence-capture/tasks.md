@@ -27,19 +27,19 @@ Manual check: Open the capture window, choose "Expresión estática", type `hola
 Test: `tests/test_camera.py` asserts that "Capturar" freezes the frame and shows only "Aprobar" and "No aprobar", and that "Aprobar" saves one static sample with each hand labeled left or right (normalized points plus raw wrist), shows "Guardada muestra: HOLA (2 manos)" and the count +1, and returns to live video; `tests/test_hands.py` asserts handedness matches the mirrored frame; `tests/test_dataset.py` asserts the static row in Neon; `tests/test_train.py` asserts training still uses only the one-hand vowel samples in the old format.
 Manual check: Open `hola` in static mode, show both hands, click "Capturar", check the frozen image, click "Aprobar", and confirm the message, the new count and a new `samples` row in Neon; then run `python src/train/train.py` and confirm it still trains.
 
-- [ ] 4.1 Failing test — result: ________
-- [ ] 4.2 Implementation — files: ________
-- [ ] 4.3 Passing test — result: ________
-- [ ] 4.4 Developer approval
+- [x] 4.1 Failing test — result: 7 failed (`AttributeError: 'HandDetector' object has no attribute 'handedness'`, `AttributeError: module 'capture_ui' has no attribute 'review_layout'`, `AttributeError: ... 'save_static_sample'`) in tests/test_camera.py, tests/test_hands.py and tests/test_dataset.py
+- [x] 4.2 Implementation — files: `src/hands.py` (`handedness`), `src/dataset.py` (`hand_record`, protocol), `src/dbConf/database.py` (`save_static_sample`; `load_samples` reads only static array-format rows), `src/capture_ui.py` (`review_layout`, capture and approve), `src/camera.py` (frozen frame, review screen, Capturar button), `tests/test_camera.py`, `tests/test_hands.py`, `tests/test_dataset.py`
+- [x] 4.3 Passing test — result: `python -m pytest -q` → 47 passed; `python src/train/train.py` still trains ("a" recognized)
+- [x] 4.4 Developer approval
 
 ## Phase 5 — Discard a static capture, or refuse it with no hand (covers HP-9 for static, SP-3)
 Test: `tests/test_camera.py` asserts that "No aprobar" saves nothing, keeps the count, shows "Muestra descartada" and returns to live video, and that "Capturar" with no hand shows "No se capturó: no se detectó ninguna mano" without entering review.
 Manual check: Capture, click "No aprobar", and confirm the count did not change; hide your hands, click "Capturar", and confirm the message appears.
 
-- [ ] 5.1 Failing test — result: ________
-- [ ] 5.2 Implementation — files: ________
-- [ ] 5.3 Passing test — result: ________
-- [ ] 5.4 Developer approval
+- [x] 5.1 Failing test — result: 3 failed in tests/test_camera.py (`AssertionError: assert 'No se capturó: no se detectó ninguna mano' in [...]`, and the two discard tests); the developer then asked to remove these tests from the suite
+- [x] 5.2 Implementation — files: `src/capture_ui.py` (`_discard`, no-hand message, `NO_HAND_MESSAGE`, `DISCARDED_MESSAGE`)
+- [x] 5.3 Passing test — result: 50 passed with the phase tests; after removing them at the developer's request, `python -m pytest -q` → 47 passed
+- [x] 5.4 Developer approval
 
 ## Phase 6 — Record a motion sequence, replay it, and approve or discard it (covers HP-6, HP-7, HP-8, HP-9 for motion)
 Test: `tests/test_camera.py` asserts that "Grabar" shows "Grabando..." with the elapsed time and turns into "Detener", that "Detener" replays the recorded frames in a loop at their recorded timing with only "Aprobar"/"No aprobar", that "Aprobar" saves one motion sample whose frames are in order with index and ms offset and without the no-hand frames, and shows "Guardada secuencia: HOLA (N frames)" with the count +1, and that "No aprobar" saves nothing; `tests/test_dataset.py` asserts the parent row with no `points`, the child frame rows in Neon, and that deleting the sample deletes its frames.

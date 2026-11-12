@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 
-from capture_ui import CaptureUI, MODE_BUTTONS, MODE_KEYS, expression_layout, menu_layout, name_layout
+from capture_ui import (CaptureUI, MODE_BUTTONS, MODE_KEYS, expression_layout, menu_layout, name_layout,
+                        review_layout)
 from hands import NO_HAND_TEXT
 from textdraw import draw_text, text_width
 from widgets import (BUTTON_TEXT_SIZE, PRIMARY_TEXT, TEXT, TEXT_SECONDARY, draw_card, draw_field, draw_primary_button,
@@ -110,19 +111,48 @@ def draw_name_input(frame, ui):
     return frame
 
 
-def draw_expression(frame, ui):
-    """Chip with the open expression, its mode and sample count, and the Volver button."""
-    height, width = frame.shape[:2]
-    scale = scale_for(frame)
-    layout = expression_layout(width, height)
+def draw_chip(frame, ui, layout, scale):
+    """Chip with the open expression, its mode and sample count, and the last result message below it."""
     chip = layout["chip"]
     draw_rounded_rect(frame, chip[:2], chip[2:], STRIP_FILL, FIELD_BORDER, round(10 * scale))
     draw_text(frame, ui.chip_text, (chip[0] + round(12 * scale), (chip[1] + chip[3]) // 2), TEXT[::-1],
               size=round(16 * scale), anchor="lm", bold=True)
+    if ui.message:
+        message = layout["message"]
+        draw_rounded_rect(frame, message[:2], message[2:], STRIP_FILL, None, round(10 * scale))
+        draw_text(frame, ui.message, (message[0] + round(12 * scale), (message[1] + message[3]) // 2),
+                  TEXT[::-1], size=round(16 * scale), anchor="lm")
+
+
+def draw_expression(frame, ui):
+    """The open expression with its Volver button and, in static mode, Capturar."""
+    height, width = frame.shape[:2]
+    scale = scale_for(frame)
+    layout = expression_layout(width, height)
+    draw_chip(frame, ui, layout, scale)
     draw_strip(frame)
     back = layout["back"]
     draw_secondary_button(frame, back[:2], back[2:], scale)
     _label(frame, "Volver", back, TEXT, scale)
+    if ui.mode == "static":
+        capture = layout["capture"]
+        draw_primary_button(frame, capture[:2], capture[2:], scale)
+        _label(frame, "Capturar", capture, PRIMARY_TEXT, scale)
+    return frame
+
+
+def draw_review(frame, ui):
+    """The frozen capture with only Aprobar and No aprobar."""
+    height, width = frame.shape[:2]
+    scale = scale_for(frame)
+    draw_chip(frame, ui, expression_layout(width, height), scale)
+    draw_strip(frame)
+    layout = review_layout(width, height)
+    discard, approve = layout["discard"], layout["approve"]
+    draw_secondary_button(frame, discard[:2], discard[2:], scale)
+    _label(frame, "No aprobar", discard, TEXT, scale)
+    draw_primary_button(frame, approve[:2], approve[2:], scale)
+    _label(frame, "Aprobar", approve, PRIMARY_TEXT, scale)
     return frame
 
 
@@ -131,6 +161,8 @@ def draw_capture_screen(frame, ui):
         return draw_name_input(frame, ui)
     if ui.screen == "expression":
         return draw_expression(frame, ui)
+    if ui.screen == "review":
+        return draw_review(frame, ui)
     return draw_menu(frame)
 
 
@@ -170,11 +202,16 @@ def run_camera(cap, detector=None, repository=None, predict=None):
                         clicks.append((x, y)) if event == cv2.EVENT_LBUTTONDOWN else None))
             frame = draw_frame(frame, detector)
             if ui is not None:
+                ui.live_hands = list(zip(detector.handedness(), detector.landmarks())) if detector else []
                 current_size = get_window_size(window_size)
                 frame_size = (frame.shape[1], frame.shape[0])
                 while clicks:
                     x, y = window_to_frame(*clicks.pop(0), frame_size, current_size)
                     ui.click(x, y, *frame_size)
+                if ui.screen == "review" and ui.frozen is None:
+                    ui.frozen = frame.copy()
+                if ui.screen == "review":
+                    frame = ui.frozen.copy()
             if predict is not None and detector is not None:
                 text = predict(detector)
                 if text:
