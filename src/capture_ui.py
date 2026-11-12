@@ -3,6 +3,7 @@
 Pure logic, no drawing: `camera.py` draws what this module describes. Rectangles are
 (x0, y0, x1, y1) in video-frame pixels, scaled from the 640 x 480 reference of the design.
 """
+import math
 from bisect import bisect_right
 
 from dataset import hand_record
@@ -15,6 +16,7 @@ MODE_TITLES = dict(zip(MODE_KEYS, MODE_BUTTONS))
 
 NO_HAND_MESSAGE = "No se capturó: no se detectó ninguna mano"
 DISCARDED_MESSAGE = "Muestra descartada"
+RECORD_DELAY_SECONDS = 2  # countdown between clicking Grabar and the recording starting
 DEFAULT_FRAME_MS = 33  # replay length of the last frame when the recording has a single frame
 
 KEY_BACKSPACE = 8
@@ -104,6 +106,7 @@ class CaptureUI:
         self.now = 0.0  # seconds, refreshed by the camera loop once per frame
         self.recording = []  # {"ms", "hands", "image"} for every frame since "Grabar", hand or not
         self.record_start = 0.0
+        self.countdown_start = 0.0
         self.replay_start = 0.0
 
     def click(self, x, y, width, height):
@@ -127,7 +130,7 @@ class CaptureUI:
                 else:
                     self.message = NO_HAND_MESSAGE
             elif self.mode == "motion" and _inside(layout["capture"], x, y):
-                self.recording, self.record_start, self.message, self.screen = [], self.now, "", "recording"
+                self.countdown_start, self.message, self.screen = self.now, "", "countdown"
         elif self.screen == "recording":
             if _inside(expression_layout(width, height)["stop"], x, y):
                 self.replay_start, self.screen = self.now, "review"
@@ -147,6 +150,15 @@ class CaptureUI:
             self._accept()
         elif code == SPACE or chr(code).isalnum():
             self.name += chr(code)
+
+    def update(self):
+        """Start recording when the countdown ends; the camera loop calls this once per frame."""
+        if self.screen == "countdown" and self.now - self.countdown_start >= RECORD_DELAY_SECONDS:
+            self.recording, self.record_start, self.screen = [], self.now, "recording"
+
+    @property
+    def countdown_left(self):
+        return max(1, math.ceil(RECORD_DELAY_SECONDS - (self.now - self.countdown_start)))
 
     def record(self, image):
         """Keep the video frame being shown, with the hands seen in it, while recording."""

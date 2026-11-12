@@ -142,6 +142,18 @@ def draw_expression(frame, ui):
     return frame
 
 
+def draw_countdown(frame, ui):
+    """Big number counting down to the start of the recording, so the hands can get in place."""
+    height, width = frame.shape[:2]
+    scale = scale_for(frame)
+    draw_chip(frame, ui, expression_layout(width, height), scale)
+    draw_text(frame, "Prepárate...", (width // 2, height // 2 - round(60 * scale)), TEXT[::-1],
+              size=round(28 * scale), anchor="mm", bold=True)
+    draw_text(frame, str(ui.countdown_left), (width // 2, height // 2 + round(10 * scale)), TEXT[::-1],
+              size=round(96 * scale), anchor="mm", bold=True)
+    return frame
+
+
 def draw_recording(frame, ui):
     """The elapsed recording time and the Detener button."""
     height, width = frame.shape[:2]
@@ -179,6 +191,8 @@ def draw_capture_screen(frame, ui):
         return draw_name_input(frame, ui)
     if ui.screen == "expression":
         return draw_expression(frame, ui)
+    if ui.screen == "countdown":
+        return draw_countdown(frame, ui)
     if ui.screen == "recording":
         return draw_recording(frame, ui)
     if ui.screen == "review":
@@ -229,6 +243,7 @@ def run_camera(cap, detector=None, repository=None, predict=None, clock=time.mon
                 while clicks:
                     x, y = window_to_frame(*clicks.pop(0), frame_size, current_size)
                     ui.click(x, y, *frame_size)
+                ui.update()
                 if ui.screen == "recording":
                     ui.record(frame.copy())
                 if ui.screen == "review" and ui.mode == "static" and ui.frozen is None:

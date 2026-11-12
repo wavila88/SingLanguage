@@ -49,3 +49,12 @@ Manual check: Open `hola` in motion mode, record a wave, watch the replay, appro
 - [x] 6.2 Implementation — files: `src/capture_ui.py` (recording state, replay loop, motion approve/discard, `stop` layout), `src/camera.py` (`clock`, recording and replay frames, Grabar/Detener drawing), `src/dbConf/schema.sql` (nullable `points`, `sample_frames`), `src/dbConf/database.py` (`save_motion_sample`), `src/dataset.py` (protocol)
 - [x] 6.3 Passing test — result: 54 passed with the phase tests; after removing them at the developer's request, the rest of the suite passes and `python src/train/train.py` still trains
 - [x] 6.4 Developer approval
+
+## Phase 7 — Two-second countdown before a recording starts (adjusts HP-6)
+Test: no automated test; the developer asked not to add more tests to the suite. The timing was checked with a script driving `CaptureUI` with a fake clock.
+Manual check: In motion mode click "Grabar", see "Prepárate..." with a 2 then a 1, and confirm the recording starts after 2 s with "Grabando... 0.0 s", and that the saved frames have no time from the countdown.
+
+- [x] 7.1 Failing test — result: not written at the developer's request; behavior checked with a fake-clock script (countdown shows 2, 2, 1, 1, 1 and recording starts at exactly 2.0 s)
+- [x] 7.2 Implementation — files: `src/capture_ui.py` (`countdown` screen, `RECORD_DELAY_SECONDS`, `update`, `countdown_left`), `src/camera.py` (`draw_countdown`, `ui.update()` each frame)
+- [x] 7.3 Passing test — result: `python -m pytest -q` → 47 passed
+- [x] 7.4 Developer approval

@@ -63,3 +63,4 @@ In the capture window the user can save samples of whole expressions such as "ho
 - `schema.sql` updates the existing Neon tables in place (new column, nullable `points`, new table). Current samples are not lost.
 - Training keeps reading only the one-hand static vowel samples in today's format, so `train.py` does not break on the new rows.
 - Minimum 5 frames and maximum 10 s per recording are defaults. They can be tuned after the first captures.
+- Added after the first captures: clicking "Grabar" starts a 2-second countdown ("Prepárate..." with 2 and 1) and the recording starts when it ends, so the hands can get in place. The countdown is not part of the recording.
